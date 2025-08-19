@@ -59,4 +59,46 @@ router.get('/:course_id', async (req, res) => {
   }
 })
 
+// UPDATE Course by ID
+router.put('/:course_id', async (req, res) => {
+  const { course_id } = req.params
+  const { coursename } = req.body
+  try {
+    const statement = `
+      UPDATE Course
+      SET coursename = ?
+      WHERE course_id = ?
+    `
+    const [result] = await db.execute(statement, [coursename, course_id])
+
+    if (result.affectedRows === 0) {
+      res.send(utils.createError('Course not found or not updated'))
+    } else {
+      res.send(utils.createSuccess({ course_id, coursename }))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+// DELETE Course by ID
+router.delete('/:course_id', async (req, res) => {
+  const { course_id } = req.params
+  try {
+    const statement = `
+      DELETE FROM Course
+      WHERE course_id = ?
+    `
+    const [result] = await db.execute(statement, [course_id])
+
+    if (result.affectedRows === 0) {
+      res.send(utils.createError('Course not found'))
+    } else {
+      res.send(utils.createSuccess(`Course with id ${course_id} deleted successfully`))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
 module.exports = router
