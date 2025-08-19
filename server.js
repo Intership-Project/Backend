@@ -4,6 +4,7 @@ const bodyParser = require('body-parser')
 
 const courseRouter = require('./routes/course')   // our new course routes
 const adminRouter = require('./routes/admin')     // your existing admin routes
+const roleRouter = require('./routes/role')
 
 const app = express()
 
@@ -13,6 +14,7 @@ app.use(bodyParser.json())
 // routes
 app.use('/admin', adminRouter)
 app.use('/course', courseRouter)
+app.use('/role', roleRouter)
 
 // default route
 app.get('/', (req, res) => {
