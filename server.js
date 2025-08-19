@@ -1,39 +1,26 @@
 const express = require('express')
 const cors = require('cors')
-const db = require('./db')
-const utils = require('./utils')
-const morgan = require('morgan')
+const bodyParser = require('body-parser')
 
-// create app
+const courseRouter = require('./routes/course')   // our new course routes
+const adminRouter = require('./routes/admin')     // your existing admin routes
+
 const app = express()
+
 app.use(cors())
-app.use(morgan('combined'))
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(bodyParser.json())
 
 // routes
-const adminRoute = require('./routes/admin')
-
-
-// use routes
-
-app.use('/admin', adminRoute)
-
+app.use('/admin', adminRouter)
+app.use('/course', courseRouter)
 
 // default route
 app.get('/', (req, res) => {
-  res.send('API is running...')
+  res.send('Server is running ✅')
 })
 
-// start server
-const PORT = process.env.PORT || 4000
-app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`)
+const PORT = process.env.PORT || 6000
+app.listen(PORT, "0.0.0.0",() => {
+  console.log(`Server started on http://localhost:${PORT}`)
+ 
 })
-
-
-
-
-
-
-
