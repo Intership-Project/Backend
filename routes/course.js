@@ -39,4 +39,24 @@ router.get('/', async (req, res) => {
   }
 })
 
+// GET Course by ID
+router.get('/:course_id', async (req, res) => {
+  const { course_id } = req.params
+  try {
+    const statement = `
+      SELECT course_id, coursename
+      FROM Course
+      WHERE course_id = ?
+    `
+    const [rows] = await db.execute(statement, [course_id])
+    if (rows.length === 0) {
+      res.send(utils.createError('Course not found'))
+    } else {
+      res.send(utils.createSuccess(rows[0]))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
 module.exports = router
