@@ -181,7 +181,6 @@ const [studentRows] = await db.execute(statement, [
     })
     
 
-
     // ================= Change Password API =================
     router.put('/changepassword', async (req, res) => {
       try {
@@ -192,7 +191,7 @@ const [studentRows] = await db.execute(statement, [
           return res.status(400).json(utils.createError('Old and new password dono chahiye'))
         }
     
-        // Old password encrypt 
+        // Old password encrypt karke verify
         const encryptedOldPassword = cryptojs.SHA256(oldPassword).toString()
     
         const [users] = await db.execute(
@@ -207,6 +206,17 @@ const [studentRows] = await db.execute(statement, [
         // New password encrypt
         const encryptedNewPassword = cryptojs.SHA256(newPassword).toString()
     
+        // Update DB
+        await db.execute(
+          `UPDATE student SET password = ? WHERE student_id = ?`,
+          [encryptedNewPassword, student_id]
+        )
+    
+        res.json(utils.createSuccess('Password successfully change ho gaya'))
+      } catch (ex) {
+        res.status(500).json(utils.createError(ex))
+      }
+    })
 
 })
 module.exports = router
