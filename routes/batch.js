@@ -48,4 +48,21 @@ router.get('/:batch_id', async (req, res) => {
   }
 })
 
+
+// DELETE Batch
+router.delete('/:batch_id', async (req, res) => {
+  const { batch_id } = req.params
+  try {
+    const statement = `DELETE FROM Batch WHERE batch_id = ?`
+    const [result] = await db.execute(statement, [batch_id])
+
+    if (result.affectedRows === 0) {
+      res.send(utils.createError('Batch not found'))
+    } else {
+      res.send(utils.createSuccess(`Batch with id ${batch_id} deleted`))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
 module.exports = router
