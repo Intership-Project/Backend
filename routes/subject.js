@@ -21,4 +21,31 @@ router.post('/', async (req, res) => {
   }
 })
 
+// GET All Subject
+router.get('/', async (req, res) => {
+  try {
+    const statement = `SELECT Subject.subject_id,Subject.subjectname,Course.course_id,Course.coursename FROM Subject INNER JOIN Course ON Subject.course_id = Course.course_id `
+    const [rows] = await db.execute(statement)
+    res.send(utils.createSuccess(rows))
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+// GET Subject by ID
+router.get('/:subject_id', async (req, res) => {
+  const { subject_id } = req.params
+  try {
+    const statement = ` SELECT Subject.subject_id,Subject.subjectname,Course.course_id,Course.coursename FROM Subject INNER JOIN Course ON Subject.course_id = Course.course_id WHERE Subject.subject_id = ?`
+    const [rows] = await db.execute(statement, [subject_id])
+    if (rows.length === 0) {
+      res.send(utils.createError('Subject not found'))
+    } else {
+      res.send(utils.createSuccess(rows[0]))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
 module.exports = router
