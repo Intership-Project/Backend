@@ -34,5 +34,23 @@ router.get('/', async (req, res) => {
   }
 })
 
+// GET FeedbackType by ID
+
+router.get('/:feedbacktype_id', async (req, res) => {
+  const { feedbacktype_id } = req.params
+  try {
+    const statement = `SELECT feedbacktype_id, fbtypename FROM FeedbackType WHERE feedbacktype_id = ?`
+    const [rows] = await db.execute(statement, [feedbacktype_id])
+
+    if (rows.length === 0) {
+      res.send(utils.createError('FeedbackType not found'))
+    } else {
+      res.send(utils.createSuccess(rows[0]))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
 
 module.exports = router
