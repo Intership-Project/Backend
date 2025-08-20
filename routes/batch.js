@@ -48,6 +48,24 @@ router.get('/:batch_id', async (req, res) => {
   }
 })
 
+// UPDATE Batch
+router.put('/:batch_id', async (req, res) => {
+  const { batch_id } = req.params
+  const { batchname, course_id } = req.body
+
+  try {
+    const statement = `UPDATE Batch SET batchname = ?, course_id = ? WHERE batch_id = ?`
+    const [result] = await db.execute(statement, [batchname, course_id, batch_id])
+
+    if (result.affectedRows === 0) {
+      res.send(utils.createError('Batch not found or not updated'))
+    } else {
+      res.send(utils.createSuccess({ batch_id, batchname, course_id }))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
 
 // DELETE Batch
 router.delete('/:batch_id', async (req, res) => {
