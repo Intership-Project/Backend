@@ -23,5 +23,16 @@ router.post('/', async (req, res) => {
   }
 })
 
+// GET All FeedbackType
+router.get('/', async (req, res) => {
+  try {
+    const statement = `SELECT feedbacktype_id, fbtypename FROM FeedbackType`
+    const [rows] = await db.execute(statement)
+    res.send(utils.createSuccess(rows))
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
 
 module.exports = router
