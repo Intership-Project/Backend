@@ -18,6 +18,7 @@ const courseRoute = require('./routes/course')
 const  roleRoute = require('./routes/role')
 const batchRoute = require('./routes/batch')
 const subjectRoute = require('./routes/subject')
+const feedbacktypeRoute = require('./routes/feedbacktype')
 
 // use routes
 
@@ -26,7 +27,7 @@ app.use('/course',courseRoute)
 app.use('/role',roleRoute)
 app.use('/batch',batchRoute)
 app.use('/subject',subjectRoute)
-
+app.use('/feedbacktype',feedbacktypeRoute)
 
 // default route
 app.get('/', (req, res) => {

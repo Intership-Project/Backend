@@ -71,5 +71,22 @@ router.put('/:subject_id', async (req, res) => {
   }
 })
 
+// DELETE Subject
+router.delete('/:subject_id', async (req, res) => {
+  const { subject_id } = req.params
+  try {
+    const statement = `DELETE FROM Subject WHERE subject_id = ?`
+    const [result] = await db.execute(statement, [subject_id])
+
+    if (result.affectedRows === 0) {
+      res.send(utils.createError('Subject not found'))
+    } else {
+      res.send(utils.createSuccess(`Subject with id ${subject_id} deleted`))
+    }
+  } catch (ex) {
+    // catches MySQL foreign key errors too
+    res.send(utils.createError(ex))
+  }
+})
 
 module.exports = router
