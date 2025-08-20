@@ -6,6 +6,7 @@ const courseRouter = require('./routes/course')   // our new course routes
 const adminRouter = require('./routes/admin')     // your existing admin routes
 const roleRouter = require('./routes/role')
 const batchRouter = require('./routes/batch')
+const subjectRouter = require('./routes/subject')
 
 const app = express()
 
@@ -17,6 +18,7 @@ app.use('/admin', adminRouter)
 app.use('/course', courseRouter)
 app.use('/role', roleRouter)
 app.use('/batch', batchRouter)
+app.use('/subject',subjectRouter)
 
 // default route
 app.get('/', (req, res) => {
