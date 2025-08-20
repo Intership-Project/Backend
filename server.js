@@ -17,6 +17,7 @@ const adminRoute = require('./routes/admin')
 const courseRoute = require('./routes/course')
 const  roleRoute = require('./routes/role')
 const batchRoute = require('./routes/batch')
+const subjectRoute = require('./routes/subject')
 
 // use routes
 
@@ -24,6 +25,7 @@ app.use('/admin', adminRoute)
 app.use('/course',courseRoute)
 app.use('/role',roleRoute)
 app.use('/batch',batchRoute)
+app.use('/subject',subjectRoute)
 
 
 // default route
