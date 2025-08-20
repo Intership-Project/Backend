@@ -8,10 +8,7 @@ router.post('/register', async (request, response) => {
   const { rolename } = request.body
 
   try {
-    const statement = `
-      INSERT INTO Role (rolename)
-      VALUES (?)
-    `
+    const statement = `INSERT INTO Role (rolename) VALUES (?)`
 
     const [result] = await db.execute(statement, [rolename])
 
@@ -29,10 +26,7 @@ router.post('/register', async (request, response) => {
 // GET All Roles
 router.get('/', async (request, response) => {
   try {
-    const statement = `
-      SELECT role_id, rolename
-      FROM Role
-    `
+    const statement = `SELECT role_id, rolename FROM Role`
 
     const [rows] = await db.execute(statement)
 
@@ -47,11 +41,7 @@ router.get('/:id', async (request, response) => {
   const { id } = request.params
 
   try {
-    const statement = `
-      SELECT role_id, rolename
-      FROM Role
-      WHERE role_id = ?
-    `
+    const statement = `SELECT role_id, rolename FROM Role WHERE role_id = ?`
 
     const [rows] = await db.execute(statement, [id])
 
@@ -70,11 +60,7 @@ router.get('/:id', async (request, response) => {
   const { id } = request.params
 
   try {
-    const statement = `
-      SELECT role_id, rolename
-      FROM Role
-      WHERE role_id = ?
-    `
+    const statement = `SELECT role_id, rolename FROM Role WHERE role_id = ?`
 
     const [rows] = await db.execute(statement, [id])
 
@@ -93,10 +79,7 @@ router.delete('/:id', async (request, response) => {
   const { id } = request.params
 
   try {
-    const statement = `
-      DELETE FROM Role
-      WHERE role_id = ?
-    `
+    const statement = `DELETE FROM Role WHERE role_id = ?`
 
     const [result] = await db.execute(statement, [id])
 

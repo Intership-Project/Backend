@@ -4,14 +4,11 @@ const router = express.Router()
 const db = require('../db')
 const utils = require('../utils')
 
-// CREATE Course
+// Add Course
 router.post('/', async (req, res) => {
   const { coursename } = req.body
   try {
-    const statement = `
-      INSERT INTO Course (coursename)
-      VALUES (?)
-    `
+    const statement = `INSERT INTO Course (coursename) VALUES (?)`
     const [result] = await db.execute(statement, [coursename])
 
     res.send(
@@ -28,10 +25,7 @@ router.post('/', async (req, res) => {
 // GET All Courses
 router.get('/', async (req, res) => {
   try {
-    const statement = `
-      SELECT course_id, coursename
-      FROM Course
-    `
+    const statement = `SELECT course_id, coursename FROM Course`
     const [rows] = await db.execute(statement)
     res.send(utils.createSuccess(rows))
   } catch (ex) {
@@ -43,11 +37,7 @@ router.get('/', async (req, res) => {
 router.get('/:course_id', async (req, res) => {
   const { course_id } = req.params
   try {
-    const statement = `
-      SELECT course_id, coursename
-      FROM Course
-      WHERE course_id = ?
-    `
+    const statement = `SELECT course_id, coursename FROM Course WHERE course_id = ?`
     const [rows] = await db.execute(statement, [course_id])
     if (rows.length === 0) {
       res.send(utils.createError('Course not found'))
@@ -64,11 +54,7 @@ router.put('/:course_id', async (req, res) => {
   const { course_id } = req.params
   const { coursename } = req.body
   try {
-    const statement = `
-      UPDATE Course
-      SET coursename = ?
-      WHERE course_id = ?
-    `
+    const statement = `UPDATE Course SET coursename = ? WHERE course_id = ?`
     const [result] = await db.execute(statement, [coursename, course_id])
 
     if (result.affectedRows === 0) {
@@ -85,10 +71,7 @@ router.put('/:course_id', async (req, res) => {
 router.delete('/:course_id', async (req, res) => {
   const { course_id } = req.params
   try {
-    const statement = `
-      DELETE FROM Course
-      WHERE course_id = ?
-    `
+    const statement = `DELETE FROM Course WHERE course_id = ?`
     const [result] = await db.execute(statement, [course_id])
 
     if (result.affectedRows === 0) {

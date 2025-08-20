@@ -16,13 +16,14 @@ app.use(express.urlencoded({ extended: true }))
 const adminRoute = require('./routes/admin')
 const courseRoute = require('./routes/course')
 const  roleRoute = require('./routes/role')
-
+const batchRoute = require('./routes/batch')
 
 // use routes
 
 app.use('/admin', adminRoute)
 app.use('/course',courseRoute)
 app.use('/role',roleRoute)
+app.use('/batch',batchRoute)
 
 
 // default route
