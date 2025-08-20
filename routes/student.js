@@ -181,6 +181,33 @@ const [studentRows] = await db.execute(statement, [
     })
     
 
+
+    // ================= Change Password API =================
+    router.put('/changepassword', async (req, res) => {
+      try {
+        const student_id = req.data.student_id   // JWT se aya
+        const { oldPassword, newPassword } = req.body
+    
+        if (!oldPassword || !newPassword) {
+          return res.status(400).json(utils.createError('Old and new password dono chahiye'))
+        }
+    
+        // Old password encrypt 
+        const encryptedOldPassword = cryptojs.SHA256(oldPassword).toString()
+    
+        const [users] = await db.execute(
+          `SELECT student_id FROM student WHERE student_id = ? AND password = ?`,
+          [student_id, encryptedOldPassword]
+        )
+    
+        if (users.length === 0) {
+          return res.status(400).json(utils.createError('Old password galat hai'))
+        }
+    
+        // New password encrypt
+        const encryptedNewPassword = cryptojs.SHA256(newPassword).toString()
+    
+
 })
 module.exports = router
 
