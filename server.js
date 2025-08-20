@@ -41,10 +41,10 @@ app.use((request,response,next) => {
 
 //add routes
 const userRouter = require('./routes/student')
-const getstudentRouter = require('./routes/getallstudent')
+
 
 app.use('/student',userRouter)
-app.use('/getallstudent',getstudentRouter)
+
 
 app.listen(3000,'0.0.0.0',() =>{
   console.log('Server Running on Port 3000')

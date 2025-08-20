@@ -76,6 +76,22 @@ try {
   }
   })
 
+ 
+router.get('/', async (request ,  response) =>{
+
+  try {
+    const statement = `
+  select student_id,studentname, email,password,course_id from student`
+  const [result] = await db.execute(statement, [])
+  response.send(utils.createSuccess(result))
+    
+  } catch (ex) {
+    response.send(utils.createError(ex))
+    console.error("Error:", ex)
+    
+  }
+})
+
 
 
   
@@ -95,6 +111,43 @@ router.delete("/delete/:id", (req, res) => {
         res.json({ message: "Student deleted successfully" });
     });
 });
+
+
+
+
+// ✅ Update API
+router.put('/update/:id', async (req, res) => {
+  const student_id = req.params.id
+  const { studentname, email, password, course_id } = req.body
+
+  try {
+    let encryptedpassword = null
+    if (password) {
+      encryptedpassword = String(cryptojs.SHA256(password))
+    }
+
+    const statement = `
+      UPDATE student 
+      SET studentname = ?, email = ?, ${password ? 'password = ?,' : ''} course_id = ? 
+      WHERE student_id = ?
+    `
+
+    const params = password
+      ? [studentname, email, encryptedpassword, course_id, student_id]
+      : [studentname, email, course_id, student_id]
+
+    const [result] = await db.execute(statement, params)
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Student not found' })
+    }
+
+    res.json({ message: 'Student updated successfully' })
+  } catch (ex) {
+    res.status(500).json({ error: ex })
+  }
+})
+
 
 
 
