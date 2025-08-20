@@ -61,5 +61,24 @@ router.get('/', async (req, res) => {
       res.send(utils.createError(ex))
     }
   })
+// delete feedbackType
+router.delete('/:feedbacktype_id', async (req, res) => {
+    const { feedbacktype_id } = req.params
+    try {
+      const statement = `
+        DELETE FROM FeedbackType
+        WHERE feedbacktype_id = ?
+      `
+      const [result] = await db.execute(statement, [feedbacktype_id])
+  
+      if (result.affectedRows === 0) {
+        res.send(utils.createError('FeedbackType not found'))
+      } else {
+        res.send(utils.createSuccess(`FeedbackType with id ${feedbacktype_id} deleted`))
+      }
+    } catch (ex) {
+      res.send(utils.createError(ex))
+    }
+  })
   
 module.exports = router
