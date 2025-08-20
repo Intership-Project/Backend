@@ -48,4 +48,28 @@ router.get('/:subject_id', async (req, res) => {
   }
 })
 
+// UPDATE Subject
+router.put('/:subject_id', async (req, res) => {
+  const { subject_id } = req.params
+  const { subjectname, course_id } = req.body
+
+  if (!subjectname || !course_id) {
+    return res.send(utils.createError('subjectname and course_id are required'))
+  }
+
+  try {
+    const statement = `UPDATE Subject SET subjectname = ?, course_id = ? WHERE subject_id = ?`
+    const [result] = await db.execute(statement, [subjectname, course_id, subject_id])
+
+    if (result.affectedRows === 0) {
+      res.send(utils.createError('Subject not found or not updated'))
+    } else {
+      res.send(utils.createSuccess({ subject_id, subjectname, course_id }))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+
 module.exports = router
