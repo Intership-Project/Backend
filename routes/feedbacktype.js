@@ -47,4 +47,19 @@ router.get('/:feedbacktype_id', async (req, res) => {
     }
   })
   
+// get all feedbacktypes
+
+router.get('/', async (req, res) => {
+    try {
+      const statement = `
+        SELECT feedbacktype_id, fbtypename
+        FROM FeedbackType
+      `
+      const [rows] = await db.execute(statement)
+      res.send(utils.createSuccess(rows))
+    } catch (ex) {
+      res.send(utils.createError(ex))
+    }
+  })
+  
 module.exports = router
