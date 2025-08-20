@@ -3,9 +3,7 @@ const router = express.Router()
 const db = require('../db')
 const utils = require('../utils')
 
-// ============================
-// CREATE FeedbackType
-// ============================
+// create feedbacktype
 router.post('/', async (req, res) => {
   const { fbtypename } = req.body
   try {
@@ -27,4 +25,26 @@ router.post('/', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
+// get FeedbackType by ID
+
+router.get('/:feedbacktype_id', async (req, res) => {
+    const { feedbacktype_id } = req.params
+    try {
+      const statement = `
+        SELECT feedbacktype_id, fbtypename
+        FROM FeedbackType
+        WHERE feedbacktype_id = ?
+      `
+      const [rows] = await db.execute(statement, [feedbacktype_id])
+  
+      if (rows.length === 0) {
+        res.send(utils.createError('FeedbackType not found'))
+      } else {
+        res.send(utils.createSuccess(rows[0]))
+      }
+    } catch (ex) {
+      res.send(utils.createError(ex))
+    }
+  })
+  
 module.exports = router
