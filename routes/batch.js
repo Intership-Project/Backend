@@ -21,4 +21,15 @@ router.post('/', async (req, res) => {
   }
 })
 
+// GET All Batches 
+router.get('/', async (req, res) => {
+  try {
+    const statement = `SELECT Batch.batch_id,Batch.batchname,Course.course_id,Course.coursename FROM Batch INNER JOIN Course ON Batch.course_id = Course.course_id;`
+    const [rows] = await db.execute(statement)
+    res.send(utils.createSuccess(rows))
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
 module.exports = router
