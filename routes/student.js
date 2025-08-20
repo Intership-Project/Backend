@@ -150,6 +150,27 @@ router.put('/update/:id', async (req, res) => {
 
 
 
+router.get('/profile', async (req, res) => {
+  try {
+    const student_id = req.data.student_id   // correct key
+
+    const statement = `
+      SELECT student_id, studentname, email, course_id
+      FROM student
+      WHERE student_id = ?
+    `
+    const [result] = await db.execute(statement, [student_id])
+
+    if (result.length === 0) {
+      return res.status(404).json({ message: 'Student not found' })
+    }
+
+    res.json(utils.createSuccess(result[0]))
+  } catch (ex) {
+    res.status(500).json(utils.createError(ex))
+  }
+})
+
 
 
 
