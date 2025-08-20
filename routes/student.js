@@ -78,6 +78,27 @@ try {
 
 
 
+  
+// ✅ DELETE API
+router.delete("/delete/:id", (req, res) => {
+    const student_id = req.params.id;
+
+    db.query("DELETE FROM student WHERE student_id = ?", [student_id], (err, result) => {
+        if (err) {
+            return res.status(500).json({ error: err });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Student not found" });
+        }
+
+        res.json({ message: "Student deleted successfully" });
+    });
+});
+
+
+
+
 
 
 module.exports = router
