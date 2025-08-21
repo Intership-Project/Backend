@@ -37,5 +37,25 @@ router.get('/', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
+
+// GET FeedbackQuestion by ID
+
+router.get('/:feedbackquestion_id', async (req, res) => {
+  const { feedbackquestion_id } = req.params
+  try {
+    const statement = `SELECT fq.feedbackquestion_id, fq.questiontext, fq.feedbacktype_id, ft.fbtypename
+      FROM FeedbackQuestions fq INNER JOIN FeedbackType ft ON fq.feedbacktype_id = ft.feedbacktype_id WHERE fq.feedbackquestion_id = ?`
+    const [rows] = await db.execute(statement, [feedbackquestion_id])
+
+    if (rows.length === 0) {
+      res.send(utils.createError('FeedbackQuestion not found'))
+    } else {
+      res.send(utils.createSuccess(rows[0]))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
 module.exports = router
 
