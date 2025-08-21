@@ -193,5 +193,34 @@ router.delete('/:id', async (req, res) => {
 })
 
 
+// GET /faculty/profile/:faculty_id
+router.get('/profile/:faculty_id', async (req, res) => {
+    const facultyId = req.params.faculty_id;
+
+    try {
+        const statement = `
+            SELECT faculty_id, facultyname, email, role_id
+            FROM Faculty
+            WHERE faculty_id = ?
+        `;
+
+        const [rows] = await db.execute(statement, [facultyId]);
+
+        if (rows.length === 0) {
+            res.send(utils.createError('Faculty not found'));
+        } else {
+            res.send(utils.createSuccess(rows[0]));  // single profile
+        }
+    } catch (err) {
+        res.send(utils.createError(err));
+    }
+});
+
+
+
+
+
+
+
 
 module.exports = router;
