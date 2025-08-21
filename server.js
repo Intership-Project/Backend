@@ -19,6 +19,7 @@ const  roleRoute = require('./routes/role')
 const batchRoute = require('./routes/batch')
 const subjectRoute = require('./routes/subject')
 const feedbacktypeRoute = require('./routes/feedbacktype')
+const feedbackmoduletypeRoute = require('./routes/feedbackmoduletype')
 
 // use routes
 
@@ -28,6 +29,7 @@ app.use('/role',roleRoute)
 app.use('/batch',batchRoute)
 app.use('/subject',subjectRoute)
 app.use('/feedbacktype',feedbacktypeRoute)
+app.use('/feedbackmoduletype',feedbackmoduletypeRoute)
 
 // default route
 app.get('/', (req, res) => {
