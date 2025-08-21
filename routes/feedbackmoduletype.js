@@ -56,5 +56,29 @@ router.get('/:feedbackmoduletype_id', async (req, res) => {
   }
 })
 
+// DELETE FeedbackModuleType
+
+router.delete('/:feedbackmoduletype_id', async (req, res) => {
+  const { feedbackmoduletype_id } = req.params
+  try {
+    const statement = `DELETE FROM FeedbackModuleType WHERE feedbackmoduletype_id = ?`
+    const [result] = await db.execute(statement, [feedbackmoduletype_id])
+
+    if (result.affectedRows === 0) {
+      res.send(utils.createError('FeedbackModuleType not found'))
+    } else {
+      res.send(utils.createSuccess(`FeedbackModuleType with id ${feedbackmoduletype_id} deleted`))
+    }
+  } catch (ex) {
+    // Foreign key constraint safety
+    if (ex.code === 'ER_ROW_IS_REFERENCED_2') {
+      res.send(utils.createError('Cannot delete: FeedbackModuleType is in use'))
+    } else {
+      res.send(utils.createError(ex))
+    }
+  }
+})
 
 module.exports = router
+
+
