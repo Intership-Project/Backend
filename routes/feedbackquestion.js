@@ -25,5 +25,17 @@ router.post('/', async (req, res) => {
   }
 })
 
+// GET All FeedbackQuestions
+
+router.get('/', async (req, res) => {
+  try {
+    const statement = `SELECT fq.feedbackquestion_id, fq.questiontext, fq.feedbacktype_id, ft.fbtypename
+      FROM FeedbackQuestions fq INNER JOIN FeedbackType ft ON fq.feedbacktype_id = ft.feedbacktype_id`
+    const [rows] = await db.execute(statement)
+    res.send(utils.createSuccess(rows))
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
 module.exports = router
 
