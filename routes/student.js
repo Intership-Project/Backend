@@ -1,227 +1,233 @@
 const express = require('express')
 const router = express.Router()
-const db = require('../db') 
-const utils = require('../utils')  
+const db = require('../db')
+const utils = require('../utils')
 const cryptoJs = require('crypto-js')
 const jwt = require('jsonwebtoken')
 const config = require('../config')
 
-//Student Registration
-router.post('/register', async(request, response) => {
-const {studentname,email,password,course_id} = request.body
 
-try {
-const encryptedPassword = String(cryptoJs.SHA256(password))
+// ========================== Student Registration API ==========================
+// 📌 Registers a new student into the "Student" table
+router.post('/register', async (request, response) => {
+  const { studentname, email, password, course_id } = request.body;
 
+  try {
+    // 🔐 Encrypt password using SHA256 before saving into DB
+    const encryptedPassword = String(cryptoJs.SHA256(password));
 
-const statement = `
-    insert into Student(studentname,email,password,course_id)
-    values
-    (?,?,?,?)`
-const result = await db.execute(statement, [
-   
-    studentname,
-    email,
-     encryptedPassword,
+    // SQL query to insert student details
+    const statement = `
+      INSERT INTO Student (studentname, email, password, course_id)
+      VALUES (?, ?, ?, ?)
+    `
 
-    course_id
+    // Execute query with provided values
+    const [result] = await db.execute(statement, [
+      studentname,
+      email,
+      encryptedPassword,
+      course_id
+    ])
 
-])
-
-const student_id = result.insertid 
-
-response.send(utils.createSuccess(result))
-}catch (ex) {
+    // ✅ Send success response
+    response.send(utils.createSuccess({
+      student_id: result.InsertId, // Newly created student ID
+      studentname,
+      email,
+      course_id
+    }))
+  } catch (ex) {
     response.send(utils.createError(ex))
-}
+  }
 })
 
 
-//Student Login
-
+// ========================== Student Login API ==========================
+// 📌 Validates student credentials and generates JWT token
 router.post('/login', async (request, response) => {
+  const { email, password } = request.body;
 
-    //const {email,password} = request.body
+  try {
+    // 🔐 Encrypt entered password
+    const encryptedPassword = String(cryptoJs.SHA256(password));
 
-//try {
-  //const encryptedPassword = String(cryptoJs.SHA256(password));
+    // SQL query to check if student exists with given email + password
+    const statement = `
+      SELECT student_id, studentname, email, password, course_id 
+      FROM student 
+      WHERE email = ? AND password = ?
+    ` 
 
+    const [studentRows] = await db.execute(statement, [email, encryptedPassword])
 
+    // ❌ If no student found
+    if (studentRows.length === 0) {
+      response.send(utils.createError('User does not exist'))
+    } else {
+      // ✅ Student found
+      const student = studentRows[0]
 
+      // Generate JWT token with student data
+      const token = jwt.sign(
+        {
+          student_id: student['student_id'],
+          studentname: student['studentname'],
+          coursename: student['coursename'] // ⚠️ Make sure coursename exists in table
+        },
+        config.secret
+      )
 
-
- const { email, password, Password } = request.body;  
-    const pwd = password || Password;   
-
-try {
-  const encryptedPassword = String(cryptoJs.SHA256(pwd));
-
-
-
-
-const statement = `
-    Select studentname from student where email = ? and password =?`
-    
-const [studentRows] = await db.execute(statement, [
-    email,
- encryptedPassword,
-   
-])
-
- if (studentRows.length === 0) {
-            response.send(utils.createError('user does not exist'))
-
-        } else {
-
-            const student = studentRows[0]
-
-            
-                      // include role also in token 
-            const token = jwt.sign({
-                student_id: student['student_id'], studentname: student['studentname']
-
-            },
-
-                config.secret
-
-            )
-
-
-            response.send(
-                utils.createSuccess({
-                    token,
-                    studentname: ['studentname'],
+      // Send login success response with token
+      response.send(
+        utils.createSuccess({
+          token,
+          studentname: student['studentname'],
+          coursename: student['coursename']
+        })
+      )
+    }
+  } catch (ex) {
+    response.send(utils.createError(ex))
+  }
+})
 
 
-                })
-            )
-        }
+// ========================== Update Student API ==========================
+// 📌 Update student details by student_id
+router.put('/update/:id', async (req, res) => {
+  const student_id = req.params.id
+  const { studentname, email, password, course_id } = req.body
 
-
-
-    } catch (ex) {
-        response.send(utils.createError(ex))
+  try {
+    let encryptedpassword = null
+    if (password) {
+      // 🔐 Encrypt password if provided
+      encryptedpassword = String(cryptoJs.SHA256(password))
     }
 
+    // SQL Update query (conditionally includes password if provided)
+    const statement = `
+      UPDATE student 
+      SET studentname = ?, email = ?, ${password ? 'password = ?,' : ''} course_id = ? 
+      WHERE student_id = ?
+    `
 
+    // Parameters for query
+    const params = password
+      ? [studentname, email, encryptedpassword, course_id, student_id]
+      : [studentname, email, course_id, student_id]
 
-    // ✅ DELETE API
-    router.delete("/delete/:id", (req, res) => {
-        const student_id = req.params.id;
-    
-        db.query("DELETE FROM student WHERE student_id = ?", [student_id], (err, result) => {
-            if (err) {
-                return res.status(500).json({ error: err });
-            }
-    
-            if (result.affectedRows === 0) {
-                return res.status(404).json({ message: "Student not found" });
-            }
-    
-            res.json({ message: "Student deleted successfully" });
-        });
-    });
-    
-    
+    const [result] = await db.execute(statement, params)
 
-    // ✅ Update API
-    router.put('/update/:id', async (req, res) => {
-      const student_id = req.params.id
-      const { studentname, email, password, course_id } = req.body
-    
-      try {
-        let encryptedpassword = null
-        if (password) {
-          encryptedpassword = String(cryptojs.SHA256(password))
-        }
-    
-        const statement = `
-          UPDATE student 
-          SET studentname = ?, email = ?, ${password ? 'password = ?,' : ''} course_id = ? 
-          WHERE student_id = ?
-        `
-    
-        const params = password
-          ? [studentname, email, encryptedpassword, course_id, student_id]
-          : [studentname, email, course_id, student_id]
-    
-        const [result] = await db.execute(statement, params)
-    
-        if (result.affectedRows === 0) {
-          return res.status(404).json({ message: 'Student not found' })
-        }
-    
-        res.json({ message: 'Student updated successfully' })
-      } catch (ex) {
-        res.status(500).json({ error: ex })
-      }
-    })
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Student not found' })
+    }
 
-
-    //Profile Api
-    router.get('/profile', async (req, res) => {
-      try {
-        const student_id = req.data.student_id   // correct key
-    
-        const statement = `
-          SELECT student_id, studentname, email, course_id
-          FROM student
-          WHERE student_id = ?
-        `
-        const [result] = await db.execute(statement, [student_id])
-    
-        if (result.length === 0) {
-          return res.status(404).json({ message: 'Student not found' })
-        }
-    
-        res.json(utils.createSuccess(result[0]))
-      } catch (ex) {
-        res.status(500).json(utils.createError(ex))
-      }
-    })
-    
-
-    // ================= Change Password API =================
-    router.put('/changepassword', async (req, res) => {
-      try {
-        const student_id = req.data.student_id   // JWT se aya
-        const { oldPassword, newPassword } = req.body
-    
-        if (!oldPassword || !newPassword) {
-          return res.status(400).json(utils.createError('Old and new password dono chahiye'))
-        }
-    
-        // Old password encrypt karke verify
-        const encryptedOldPassword = cryptojs.SHA256(oldPassword).toString()
-    
-        const [users] = await db.execute(
-          `SELECT student_id FROM student WHERE student_id = ? AND password = ?`,
-          [student_id, encryptedOldPassword]
-        )
-    
-        if (users.length === 0) {
-          return res.status(400).json(utils.createError('Old password galat hai'))
-        }
-    
-        // New password encrypt
-        const encryptedNewPassword = cryptojs.SHA256(newPassword).toString()
-    
-        // Update DB
-        await db.execute(
-          `UPDATE student SET password = ? WHERE student_id = ?`,
-          [encryptedNewPassword, student_id]
-        )
-    
-        res.json(utils.createSuccess('Password successfully change ho gaya'))
-      } catch (ex) {
-        res.status(500).json(utils.createError(ex))
-      }
-    })
-
+    res.json({ message: 'Student updated successfully' })
+  } catch (ex) {
+    res.status(500).json({ error: ex })
+  }
 })
+
+
+// ========================== Delete Student API ==========================
+// 📌 Delete student by student_id
+router.delete("/delete/:id", (req, res) => {
+  const student_id = req.params.id;
+
+  db.query("DELETE FROM student WHERE student_id = ?", [student_id], (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: err });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    res.json({ message: "Student deleted successfully" });
+  });
+})
+
+
+// ========================== Get All Students API ==========================
+// 📌 Fetch all students from Student table
+router.get('/getall', async (request, response) => {
+  try {
+    const statement = `
+      SELECT student_id, studentname, email, password, course_id 
+      FROM student
+    `
+    const [result] = await db.execute(statement, [])
+    response.send(utils.createSuccess(result))
+  } catch (ex) {
+    response.send(utils.createError(ex))
+    console.error("Error:", ex)
+  }
+})
+
+
+// ========================== Get Profile API ==========================
+// 📌 Fetch logged-in student profile using student_id from JWT
+router.get('/profile', async (req, res) => {
+  try {
+    const student_id = req.data.student_id   // student_id comes from JWT middleware
+
+    const statement = `
+      SELECT student_id, studentname, email, course_id
+      FROM student
+      WHERE student_id = ?
+    `
+    const [result] = await db.execute(statement, [student_id])
+
+    if (result.length === 0) {
+      return res.status(404).json({ message: 'Student not found' })
+    }
+
+    res.json(utils.createSuccess(result[0]))
+  } catch (ex) {
+    res.status(500).json(utils.createError(ex))
+  }
+})
+
+
+// ========================== Change Password API ==========================
+// 📌 Allows logged-in student to change password
+router.put('/changepassword', async (req, res) => {
+  try {
+    const student_id = req.data.student_id   // student_id comes from JWT middleware
+    const { oldPassword, newPassword } = req.body
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json(utils.createError('Old and new password are required'))
+    }
+
+    // 🔐 Encrypt old password and verify with DB
+    const encryptedOldPassword = cryptoJs.SHA256(oldPassword).toString()
+
+    const [users] = await db.execute(
+      `SELECT student_id FROM student WHERE student_id = ? AND password = ?`,
+      [student_id, encryptedOldPassword]
+    )
+
+    if (users.length === 0) {
+      return res.status(400).json(utils.createError('Old password is incorrect'))
+    }
+
+    // 🔐 Encrypt new password
+    const encryptedNewPassword = cryptoJs.SHA256(newPassword).toString()
+
+    // Update new password in DB
+    await db.execute(
+      `UPDATE student SET password = ? WHERE student_id = ?`,
+      [encryptedNewPassword, student_id]
+    )
+
+    res.json(utils.createSuccess('Password changed successfully'))
+  } catch (ex) {
+    res.status(500).json(utils.createError(ex))
+  }
+})
+
+
 module.exports = router
-
-
-
-
-
