@@ -52,12 +52,12 @@ app.use((request, response, next) => {
 // add the routes
 
 const facultyRouter = require('./routes/faculty')
-//const feedbackdashboardRouter = require('./routes/feedbackdashboard')
+const feedbackdashboardRouter = require('./routes/feedbackdashboard')
 
 
 
 app.use('/faculty', facultyRouter)
-//app.use('/feedbackdashboard', feedbackdashboardRouter)
+app.use('/feedbackdashboard', feedbackdashboardRouter)
 
 
 
