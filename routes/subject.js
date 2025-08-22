@@ -89,4 +89,37 @@ router.delete('/:subject_id', async (req, res) => {
   }
 })
 
+//get subject by  course
+// router.get('/subject/:course_id', async (req, res) => {
+//   const { course_id } = req.params
+//   try {
+//     const statement = `SELECT subject_id, subjectname FROM Subject WHERE course_id = ?`
+//     const [rows] = await db.execute(statement, [course_id])
+//     res.send(utils.createSuccess(rows))
+//   } catch (ex) {
+//     res.send(utils.createError(ex))
+//   }
+// })
+
+router.get('/course/:course_id', async (req, res) => {
+  const { course_id } = req.params
+  try {
+    const statement = `
+      SELECT subject_id, subjectname, course_id
+      FROM Subject 
+      WHERE course_id = ?
+    `
+    const [rows] = await db.execute(statement, [course_id])
+
+    if (rows.length === 0) {
+      res.send(utils.createError('No subjects found for this course'))
+    } else {
+      res.send(utils.createSuccess(rows))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+
 module.exports = router
