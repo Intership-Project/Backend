@@ -162,7 +162,7 @@ router.delete("/delete/:id", (req, res) => {
 router.get('/getall', async (request, response) => {
   try {
     const statement = `
-      SELECT student_id, studentname, email, password, course_id, 
+      SELECT student_id, studentname, email, password, course_id,batch_id 
       FROM student
     `
     const [result] = await db.execute(statement, [])
