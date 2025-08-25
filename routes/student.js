@@ -10,7 +10,7 @@ const config = require('../config')
 // ========================== Student Registration API ==========================
 // 📌 Registers a new student into the "Student" table
 router.post('/register', async (request, response) => {
-  const { studentname, email, password, course_id } = request.body;
+  const { studentname, email, password, course_id,batch_id} = request.body;
 
   try {
     // 🔐 Encrypt password using SHA256 before saving into DB
@@ -18,8 +18,8 @@ router.post('/register', async (request, response) => {
 
     // SQL query to insert student details
     const statement = `
-      INSERT INTO Student (studentname, email, password, course_id)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO Student (studentname, email, password, course_id,batch_id)
+      VALUES (?, ?, ?, ?,?)
     `
 
     // Execute query with provided values
@@ -27,7 +27,8 @@ router.post('/register', async (request, response) => {
       studentname,
       email,
       encryptedPassword,
-      course_id
+      course_id,
+      batch_id
     ])
 
     // ✅ Send success response
@@ -35,7 +36,8 @@ router.post('/register', async (request, response) => {
       student_id: result.InsertId, // Newly created student ID
       studentname,
       email,
-      course_id
+      course_id,
+      batch_id
     }))
   } catch (ex) {
     response.send(utils.createError(ex))
@@ -94,10 +96,10 @@ router.post('/login', async (request, response) => {
 
 
 // ========================== Update Student API ==========================
-// 📌 Update student details by student_id
+ // ✅ Update student details by student_id
 router.put('/update/:id', async (req, res) => {
   const student_id = req.params.id
-  const { studentname, email, password, course_id } = req.body
+  const { studentname, email, password, course_id, batch_id } = req.body
 
   try {
     let encryptedpassword = null
@@ -109,14 +111,18 @@ router.put('/update/:id', async (req, res) => {
     // SQL Update query (conditionally includes password if provided)
     const statement = `
       UPDATE student 
-      SET studentname = ?, email = ?, ${password ? 'password = ?,' : ''} course_id = ? 
+      SET studentname = ?, 
+          email = ?, 
+          ${password ? 'password = ?,' : ''} 
+          course_id = ?, 
+          batch_id = ?
       WHERE student_id = ?
     `
 
     // Parameters for query
     const params = password
-      ? [studentname, email, encryptedpassword, course_id, student_id]
-      : [studentname, email, course_id, student_id]
+      ? [studentname, email, encryptedpassword, course_id, batch_id, student_id]
+      : [studentname, email, course_id, batch_id, student_id]
 
     const [result] = await db.execute(statement, params)
 
@@ -126,7 +132,8 @@ router.put('/update/:id', async (req, res) => {
 
     res.json({ message: 'Student updated successfully' })
   } catch (ex) {
-    res.status(500).json({ error: ex })
+  
+    res.status(500).json({ error: 'Internal Server Error' })
   }
 })
 
@@ -155,7 +162,7 @@ router.delete("/delete/:id", (req, res) => {
 router.get('/getall', async (request, response) => {
   try {
     const statement = `
-      SELECT student_id, studentname, email, password, course_id 
+      SELECT student_id, studentname, email, password, course_id, 
       FROM student
     `
     const [result] = await db.execute(statement, [])
@@ -174,7 +181,7 @@ router.get('/profile', async (req, res) => {
     const student_id = req.data.student_id   // student_id comes from JWT middleware
 
     const statement = `
-      SELECT student_id, studentname, email, course_id
+      SELECT student_id, studentname, email, course_id,batch_id
       FROM student
       WHERE student_id = ?
     `
