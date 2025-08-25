@@ -10,6 +10,7 @@ const subjectRouter = require('./routes/subject')
 const feedbacktypeRouter = require('./routes/feedbacktype')
 const feedbackmoduletypeRouter = require('./routes/feedbackmoduletype')
 const feedbackquestionRouter = require('./routes/feedbackquestion')
+const schedulefeedbackRouter = require('./routes/schedulefeedback')
 
 const app = express()
 
@@ -25,6 +26,7 @@ app.use('/subject',subjectRouter)
 app.use('/feedbacktype',feedbacktypeRouter)
 app.use('/feedbackmoduletype',feedbackmoduletypeRouter)
 app.use('/feedbackquestion',feedbackquestionRouter)
+app.use('/schedulefeedback',schedulefeedbackRouter)
 
 // default route
 app.get('/', (req, res) => {
