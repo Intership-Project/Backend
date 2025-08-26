@@ -52,7 +52,8 @@ const batchRoute = require('./routes/batch')
 const subjectRoute = require('./routes/subject')
 const feedbacktypeRoute = require('./routes/feedbacktype')
 const feedbackmoduletypeRoute = require('./routes/feedbackmoduletype')
-const userRouter = require('./routes/student')
+const userRoute = require('./routes/student')
+const addfeedbackRoute = require('./routes/addfeedback')
 
 
 
@@ -66,7 +67,9 @@ app.use('/batch',batchRoute)
 app.use('/subject',subjectRoute)
 app.use('/feedbacktype',feedbacktypeRoute)
 app.use('/feedbackmoduletype',feedbackmoduletypeRoute)
-app.use('/student',userRouter)
+app.use('/student',userRoute)
+app.use('/addfeedback',addfeedbackRoute)
+
 
 
 
