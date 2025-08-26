@@ -90,6 +90,43 @@ router.get('/', async (request, response) => {
   }
 })
 
+// GET Schedule Feedback by ID
+router.get('/:id', async (request, response) => {
+  const { id } = request.params
+  try {
+    const statement = `
+      SELECT 
+        sf.schedulefeedback_id,
+        sf.StartDate,
+        sf.EndDate,
+        sf.feedbacktype_id,
+        sf.feedbackmoduletype_id,
+        c.course_id,
+        c.coursename,
+        s.subject_id,
+        s.subjectname,
+        f.faculty_id,
+        f.facultyname,
+        b.batch_id,
+        b.batchname
+      FROM ScheduleFeedback sf
+      JOIN Course c ON sf.course_id = c.course_id
+      JOIN Subject s ON sf.subject_id = s.subject_id
+      JOIN Faculty f ON sf.faculty_id = f.faculty_id
+      LEFT JOIN Batch b ON sf.batch_id = b.batch_id
+      WHERE sf.schedulefeedback_id = ?
+    `
 
+    const [rows] = await db.execute(statement, [id])
+
+    if (rows.length === 0) {
+      response.send(utils.createError('Schedule Feedback not found'))
+    } else {
+      response.send(utils.createSuccess(rows[0]))
+    }
+  } catch (ex) {
+    response.send(utils.createError(ex.message || ex))
+  }
+})
 
 module.exports = router
