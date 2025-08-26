@@ -1,4 +1,6 @@
+
 module.exports = {
 
-    secret: '8LRPsVMl4NO4eSsjAyHEySOMNPmJMxNF'
+    secret: 'EC3dNyAgv8G2RCBMpTeYhT4MPKRhGLab'
 }
+

@@ -1,6 +1,11 @@
+
 function createError(error) {
-  return { status: 'error', error }
+  return { 
+    status: 'error', 
+    error: error && error.message ? error.message : String(error) 
+  }
 }
+
 
 function createSuccess(data) {
   return { status: 'success', data }
@@ -19,7 +24,4 @@ module.exports = {
   createSuccess,
   createResult,
 }
-
-
-
 
