@@ -59,10 +59,28 @@ else {
 
 const studentRoute = require('./routes/student')
 const addfeedbackRoute = require('./routes/addfeedback')
+const adminRoute = require('./routes/admin')
+const courseRoute = require('./routes/course')
+const roleRoute = require('./routes/role')
+const batchRoute = require('./routes/batch')
+const subjectRoute = require('./routes/subject')
+const feedbacktypeRoute = require('./routes/feedbacktype')
+const feedbackmoduletypeRoute = require('./routes/feedbackmoduletype')
+const feedbackquestionRoute = require('./routes/feedbackquestion')
+const schedulefeedbackRoute = require('./routes/schedulefeedback')
+
 
 app.use('/student', studentRoute )
 app.use('/addfeedback', addfeedbackRoute)
-
+app.use('/admin', adminRoute)
+app.use('/course',courseRoute)
+app.use('/role',roleRoute)
+app.use('/batch',batchRoute)
+app.use('/subject',subjectRoute)
+app.use('/feedbacktype',feedbacktypeRoute)
+app.use('/feedbackmoduletype',feedbackmoduletypeRoute)
+app.use('/feedbackquestion',feedbackquestionRoute)
+app.use('/schedulefeedback',schedulefeedbackRoute)
 
 app.listen(4000, '0.0.0.0', () => {
     console.log('server started on port 4000')
