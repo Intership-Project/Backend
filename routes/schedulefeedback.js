@@ -203,4 +203,21 @@ router.put('/:id', async (request, response) => {
   }
 })
 
+
+//DELETE Schedule Feedback
+router.delete('/:id', async (request, response) => {
+  const { id } = request.params
+  try {
+    const statement = `DELETE FROM ScheduleFeedback WHERE schedulefeedback_id = ?`
+    const [result] = await db.execute(statement, [id])
+
+    if (result.affectedRows === 0) {
+      response.send(utils.createError('Schedule Feedback not found or already deleted'))
+    } else {
+      response.send(utils.createSuccess(`Schedule Feedback with ID ${id} deleted successfully`))
+    }
+  } catch (ex) {
+    response.send(utils.createError(ex))
+  }
+})
 module.exports = router
