@@ -61,11 +61,32 @@ router.post('/register', async (request, response) => {
 // GET All Schedule Feedbacks
 router.get('/', async (request, response) => {
   try {
-    const statement = `SELECT * FROM ScheduleFeedback`
+    const statement = `
+      SELECT 
+        sf.schedulefeedback_id,
+        sf.StartDate,
+        sf.EndDate,
+        sf.feedbacktype_id,
+        sf.feedbackmoduletype_id,
+        c.course_id,
+        c.coursename,
+        s.subject_id,
+        s.subjectname,
+        f.faculty_id,
+        f.facultyname,
+        b.batch_id,
+        b.batchname
+      FROM ScheduleFeedback sf
+      JOIN Course c ON sf.course_id = c.course_id
+      JOIN Subject s ON sf.subject_id = s.subject_id
+      JOIN Faculty f ON sf.faculty_id = f.faculty_id
+      LEFT JOIN Batch b ON sf.batch_id = b.batch_id
+    `
+
     const [rows] = await db.execute(statement)
     response.send(utils.createSuccess(rows))
   } catch (ex) {
-    response.send(utils.createError(ex))
+    response.send(utils.createError(ex.message || ex))
   }
 })
 
