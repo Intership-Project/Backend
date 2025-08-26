@@ -58,6 +58,17 @@ router.post('/register', async (request, response) => {
     response.send(utils.createError(ex))
   }
 })
+// GET All Schedule Feedbacks
+router.get('/', async (request, response) => {
+  try {
+    const statement = `SELECT * FROM ScheduleFeedback`
+    const [rows] = await db.execute(statement)
+    response.send(utils.createSuccess(rows))
+  } catch (ex) {
+    response.send(utils.createError(ex))
+  }
+})
+
 
 
 module.exports = router
