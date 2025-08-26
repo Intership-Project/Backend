@@ -57,10 +57,10 @@ else {
 // add the routes
 
 const studentRoute = require('./routes/student')
-//const homeRoute = require('/routes/home')
+const addfeedbackRoute = require('./routes/addfeedback')
 
 app.use('/student', studentRoute )
-//app.use('/home',homeRoute)
+app.use('/addfeedback', addfeedbackRoute)
 
 
 app.listen(4000, '0.0.0.0', () => {
