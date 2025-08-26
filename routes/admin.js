@@ -16,7 +16,12 @@ router.post('/register', async (request, response) => {
     const encryptedPassword = String(cryptoJs.SHA256(password))
 
     // insert into Admin table
-    const statement = `INSERT INTO Admin (username, password) VALUES (?, ?)`
+
+    const statement = `
+      INSERT INTO Admin (username, password)
+      VALUES (?, ?)
+    `
+
 
     const [result] = await db.execute(statement, [username, encryptedPassword])
 
@@ -39,7 +44,13 @@ router.post('/login', async (request, response) => {
   try {
     const encryptedPassword = String(cryptoJs.SHA256(password))
 
-    const statement = `SELECT id, username FROM Admin WHERE username = ? AND password = ?`
+
+    const statement = `
+      SELECT id, username
+      FROM Admin
+      WHERE username = ? AND password = ?
+    `
+
 
     const [rows] = await db.execute(statement, [username, encryptedPassword])
 

@@ -1,85 +1,62 @@
 const express = require('express')
 const router = express.Router()
-const db = require('../db')
+const db = require('../db') 
 const utils = require('../utils')
-const cryptoJs = require('crypto-js')
-const jwt = require('jsonwebtoken')
-const config = require('../config')
-const { Parser } = require('json2csv');
 
+ // Add New Feedback
+router.post('/', async (req, res) => {
 
-// POST /addfeedback
-// router.post('/addfeedback', async (req, res) => {
-//   const { faculty_id, filledfeedbacks } = req.body; 
-//   // filledfeedbacks = array of feedback objects
-  
-//   try {
-//     const feedbackData = JSON.stringify(filledfeedbacks); // convert to JSON
-//     const [result] = await db.execute(
-//       `INSERT INTO addfeedback (faculty_id, filledfeedbacks_json) VALUES (?, ?)`,
-//       [faculty_id, feedbackData]
-//     );
-//     res.json({ status: 'success', id: result.insertId });
-//   } catch (err) {
-//     res.status(500).json({ status: 'error', message: err.message });
-//   }
-// });
-
-
-
-router.get('/downloadfeedback', async (req, res) => {
   try {
-    const [rows] = await db.execute(`
-      SELECT 
-        ff.filledfeedbacks_id,
-        ff.student_id,
-        ff.schedulefeedback_id,
-        ff.comments,
-        ff.rating,
-        sf.course_id,
-        sf.subject_id,
-        sf.faculty_id,
-        sf.batch_id,
-        sf.feedbacktype_id,
-        sf.StartDate,
-        sf.EndDate
-      FROM filledfeedback ff
-      JOIN schedulefeedback sf ON ff.schedulefeedback_id = sf.schedulefeedback_id
-    `);
+    const {
+      course_id,
+      batch_id,
+      subject_id,
+      faculty_id,
+      feedbackmoduletype_id,
+      feedbacktype_id,
+      date,
+      pdf_file
+    } = req.body
 
-    if (rows.length === 0) {
-      return res.status(404).json({ status: 'error', message: 'No feedback found' });
+    //  Validate required fields
+    if (!course_id || !batch_id || !subject_id || !faculty_id || !feedbackmoduletype_id || !feedbacktype_id || !date) {
+      return res.send(utils.createError('All required fields must be provided'))
     }
 
-    // Convert to CSV
-    const parser = new Parser();
-    const csv = parser.parse(rows);
+    //  Insert into DB
+    const statement = `
+      INSERT INTO addfeedback 
+      (course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `
 
-    // Send file as download
-    res.header('Content-Type', 'text/csv');
-    res.attachment('feedback.csv');
-    res.send(csv);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ status: 'error', message: err.message });
+    const [result] = await db.execute(statement, [
+      course_id,
+      batch_id,
+      subject_id,
+      faculty_id,
+      feedbackmoduletype_id,
+      feedbacktype_id,
+      date,
+      pdf_file || null
+    ])
 
-    console.error(err);
+    //  Response
+    res.send(utils.createSuccess({
+      addfeedback_id: result.insertId,
+      course_id,
+      batch_id,
+      subject_id,
+      faculty_id,
+      feedbackmoduletype_id,
+      feedbacktype_id,
+      date,
+      pdf_file: pdf_file || null
+    }))
+  } catch (ex) {
+    res.send(utils.createError(ex.message || ex))
   }
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+})
 
 
 module.exports = router
