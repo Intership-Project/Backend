@@ -1,3 +1,4 @@
+
 -- 1. Create Database
 
 CREATE DATABASE feedback_system;
@@ -148,25 +149,5 @@ CREATE TABLE ScheduleFeedback (
     feedbacktype_id INT NOT NULL,
     StartDate DATE NOT NULL,
     EndDate DATE NOT NULL,
-    FOREIGN KEY (course_id) REFERENCES Course(course_id),
-    FOREIGN KEY (subject_id) REFERENCES Subject(subject_id),
-    FOREIGN KEY (faculty_id) REFERENCES Faculty(faculty_id),
-    FOREIGN KEY (batch_id) REFERENCES Batch(batch_id),
-    FOREIGN KEY (feedbacktype_id) REFERENCES FeedbackType(feedbacktype_id)
-);
+)
 
-
-
-
--- 13. FilledFeedbacks Table
-
-
-CREATE TABLE FilledFeedback (
-    filledfeedbacks_id INT PRIMARY KEY AUTO_INCREMENT,
-    student_id INT NOT NULL,
-    schedulefeedback_id INT NOT NULL,
-    comments TEXT,
-    rating INT,
-    FOREIGN KEY (student_id) REFERENCES Student(student_id),
-    FOREIGN KEY (schedulefeedback_id) REFERENCES ScheduleFeedback(schedulefeedback_id)
-);
