@@ -5,14 +5,23 @@ const utils = require('./utils')
 const morgan = require('morgan')
 const jwt = require('jsonwebtoken')
 const config = require('./config')
+const PDFDocument = require("pdfkit");
+const fs = require("fs");
+const path = require("path");
 
 
 
 
 // create app
 const app = express()
+
+// enable the CORS
 app.use(cors())
+
+// enable logging using morgan
 app.use(morgan('combined'))
+
+// set the middleware
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
@@ -20,7 +29,14 @@ app.use(express.urlencoded({ extended: true }))
 // configure protected routes
 
 app.use((request, response, next) => {
-    const skipUrls = ['/faculty/register', '/faculty/login']
+    const skipUrls = [
+        
+        '/faculty/register', 
+        '/faculty/login',
+         '/faculty/forgotpassword',
+         '/faculty/resetpassword'
+    
+    ]
     if (skipUrls.findIndex((item) => item == request.url) != -1) {
 
         next()
@@ -52,12 +68,16 @@ app.use((request, response, next) => {
 // add the routes
 
 const facultyRouter = require('./routes/faculty')
-const feedbackdashboardRouter = require('./routes/feedbackdashboard')
+const coursecordinatorRouter = require('./routes/coursecordinator')
+//const facultydashboardRouter = require('./routes/facultydashboard')
+const facultyfeedbackpdfRouter = require('./routes/facultyfeedbackpdf')
 
 
 
 app.use('/faculty', facultyRouter)
-app.use('/feedbackdashboard', feedbackdashboardRouter)
+//app.use('/facultydashboard', facultydashboardRouter)
+app.use('/coursecordinator', coursecordinatorRouter)
+app.use('/facultyfeedbackpdf', facultyfeedbackpdfRouter)
 
 
 
