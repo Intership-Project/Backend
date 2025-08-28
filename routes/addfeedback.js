@@ -65,6 +65,21 @@ router.get('/', async (req, res) => {
   }
 })
 
+// ✅ Get addfeedback by faculty_id
+router.get('/:faculty_id', async (req, res) => {
+  try {
+    const { faculty_id } = req.params
+    const statement = `SELECT * FROM addfeedback WHERE faculty_id = ?`
+    const [rows] = await db.execute(statement, [faculty_id])
 
+    if (rows.length === 0) {
+      return res.send(utils.createError('No feedback found for this faculty'))
+    }
+
+    res.send(utils.createSuccess(rows))
+  } catch (ex) {
+    res.send(utils.createError(ex.message || ex))
+  }
+})
 
 module.exports = router
