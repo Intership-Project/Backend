@@ -65,23 +65,32 @@ router.post('/login', async (req, res) => {
             return res.send(utils.createError('Email and password are required'));
         }
 
-        // Hash the password
-        const encryptedPassword = cryptoJs.SHA256(password).toString();
+        
+        
 
-        // Check in Faculty table
+        // Check in Faculty 
         const [facultyRows] = await db.execute(
-            `SELECT f.faculty_id, f.facultyname, f.email, f.role_id, r.rolename
+            `SELECT f.faculty_id, f.facultyname, f.email,f.password, f.role_id, r.rolename
              FROM faculty f
              JOIN role r ON f.role_id = r.role_id
-             WHERE f.email = ? AND f.password = ?`,
-            [email, encryptedPassword]
+             WHERE f.email = ?`,
+            [email]
         );
 
         if (facultyRows.length === 0) {
-            return res.send(utils.createError('Invalid credentials'));
+            return res.send(utils.createError('Invalid email'));
         }
 
         const faculty = facultyRows[0];
+
+
+        //  Verify password
+        const encryptedPassword = cryptoJs.SHA256(password).toString();
+        if (faculty.password !== encryptedPassword) {
+            return res.send(utils.createError('Invalid password')); 
+        }
+
+
 
         // If role is Course Coordinator, course_id must be provided
         if (faculty.rolename === 'Course Coordinator') {
@@ -98,6 +107,14 @@ router.post('/login', async (req, res) => {
             if (courseRows.length === 0) {
                 return res.send(utils.createError('Invalid course selected'));
             }
+
+             await db.execute(
+                  `UPDATE faculty SET course_id = ? WHERE faculty_id = ?`,
+                    [course_id, faculty.faculty_id]
+    );
+
+              faculty.course_id = course_id;
+
         }
 
         // Generate JWT token
@@ -107,7 +124,7 @@ router.post('/login', async (req, res) => {
                 username: faculty.facultyname,
                 email: faculty.email,
                 rolename: faculty.rolename,
-                course_id: faculty.rolename === 'Course Coordinator' ? course_id : null
+                course_id: faculty.course_id || null
             },
             config.secret,
             { expiresIn: '1h' }
@@ -119,7 +136,7 @@ router.post('/login', async (req, res) => {
             username: faculty.facultyname,
             email: faculty.email,
             rolename: faculty.rolename,
-            course_id: faculty.rolename === 'Course Coordinator' ? course_id : null
+            course_id: faculty.course_id || null
         }));
 
     } catch (ex) {
@@ -170,29 +187,32 @@ router.get('/:faculty_id', async (req, res) => {
 // UPDATE Faculty (PUT)
 
 
-router.put('profile/:faculty_id', async (req, res) => {
-    const { id } = req.params;
-    const { facultyname, email, password, role_id } = req.body;
+router.put('/profile', async (req, res) => {
+    
+    const { facultyname, email } = req.body;
+    const faculty_id = req.data.faculty_id; 
 
     try {
-        const encryptedPassword = password ? String(cryptoJs.SHA256(password)) : undefined;
+        
+        
 
         const statement = `
             UPDATE faculty
-            SET facultyname = ?, email = ?, ${password ? 'password = ?,' : ''} role_id = ?
+            SET facultyname = ?, email = ?
             WHERE faculty_id = ?
         `;
 
-        const params = password ? [facultyname, email, encryptedPassword, role_id, id] : [facultyname, email, role_id, id];
+        const params =  [facultyname, email, faculty_id];
 
+        
         const [result] = await db.execute(statement, params);
 
         res.send(utils.createSuccess({
             updated: result.affectedRows,
-            facultyId: id
+            facultyId: faculty_id
         }));
     } catch (ex) {
-        res.send(utils.createError(ex));
+         res.send(utils.createError(ex.message || ex));
     }
 })
 
@@ -200,9 +220,9 @@ router.put('profile/:faculty_id', async (req, res) => {
 // DELETE Faculty (DELETE)
 
 router.delete('/:faculty_id', async (req, res) => {
-    const { id } = req.params;
+    const { faculty_id } = req.params;
     try {
-        const [result] = await db.execute('DELETE FROM Faculty WHERE faculty_id = ?', [id]);
+        const [result] = await db.execute('DELETE FROM Faculty WHERE faculty_id = ?', [faculty_id]);
         res.send(utils.createSuccess({
             deleted: result.affectedRows,
             facultyId: id
@@ -291,9 +311,9 @@ router.post('/resetpassword', async (req, res) => {
 
 //  FACULTY CHANGE PASSWORD 
 
-router.put('/:faculty_id/change-password', async (req, res) => {
-    const { faculty_id } = req.params
+router.put('/changepassword', async (req, res) => {
     const { oldPassword, newPassword } = req.body
+    const faculty_id = req.data.faculty_id   // 👈 taken from JWT payload
 
     try {
         // 1. Get faculty by ID
@@ -315,7 +335,7 @@ router.put('/:faculty_id/change-password', async (req, res) => {
             return res.send(utils.createError('Old password is incorrect'))
         }
 
-        // 3. Hash new password with CryptoJS
+        // 3. Hash new password with CryptoJs
         const newHash = cryptoJs.SHA256(newPassword).toString()
 
         // 4. Update password in DB
@@ -334,32 +354,42 @@ router.put('/:faculty_id/change-password', async (req, res) => {
 
 
 
-
-// GET /faculty/my-feedback-reports/:faculty_id
-
-router.get("/myfeedbackreports/:faculty_id", (req, res) => {
+// GET /faculty/myfeedbackreports/:faculty_id
+router.get("/myfeedbackreports/:faculty_id", async (req, res) => {
     const { faculty_id } = req.params;
 
     const sql = `
-       SELECT af.addfeedback_id, af.date, af.feedbackmoduletype_id AS feedback_type, 
-       c.coursename AS course_name, 
-       s.subjectname AS subject_name, 
-       b.batchname AS batch_name, 
-       af.pdf_file
-FROM AddFeedback af
-JOIN Course c ON af.course_id = c.course_id
-JOIN Batch b ON af.batch_id = b.batch_id
-JOIN Subject s ON af.subject_id = s.subject_id
+          SELECT 
+   af.addfeedback_id, 
+   af.faculty_id,
+   DATE_FORMAT(af.date, '%Y-%m-%d') AS feedback_date, 
+   af.feedbackmoduletype_id AS feedback_type, 
+   c.coursename AS course_name, 
+   s.subjectname AS subject_name, 
+   b.batchname AS batch_name, 
+   af.pdf_file
+FROM addfeedback af
+JOIN course c ON af.course_id = c.course_id
+JOIN batch b ON af.batch_id = b.batch_id
+JOIN subject s ON af.subject_id = s.subject_id
 WHERE af.faculty_id = ? 
 ORDER BY af.date DESC;
 
+
     `;
 
-    db.query(sql, [faculty_id], (err, results) => {
-        if (err) return res.status(500).json({ error: err });
-        res.json(results);
-    });
+    try {
+        const [results] = await db.query(sql, [faculty_id]);  // <-- Promise style
+        res.json({
+            status: "success",
+            data: results
+        });
+    } catch (err) {
+        console.error("SQL Error:", err);
+        res.status(500).json({ status: "error", error: err.message });
+    }
 });
+
 
 
 

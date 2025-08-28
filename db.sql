@@ -9,9 +9,10 @@ USE feedback_system;
 -- 2. Admin Table
 
 CREATE TABLE Admin (
-    id INT PRIMARY KEY AUTO_INCREMENT,
+    id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     username VARCHAR(50) NOT NULL,
-    password VARCHAR(50) NOT NULL
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL
 );
 
 
@@ -19,10 +20,15 @@ CREATE TABLE Admin (
 -- 3. Faculty Table
 
 CREATE TABLE Faculty (
-    faculty_id INT PRIMARY KEY AUTO_INCREMENT,
+    faculty_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     facultyname VARCHAR(100) NOT NULL,
-    email VARCHAR(100) NOT NULL,
-    password VARCHAR(255) NOT NULL
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255),
+    role_id INT,
+    course_id INT,
+     FOREIGN KEY (role_id) REFERENCES role(role_id),
+    FOREIGN KEY (course_id) REFERENCES course(course_id)
+
 );
 
 
@@ -43,10 +49,10 @@ CREATE TABLE Course (
 
 
 CREATE TABLE Batch (
-    batch_id INT PRIMARY KEY AUTO_INCREMENT,
+    batch_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     batchname VARCHAR(100) NOT NULL,
     course_id INT NOT NULL,
-    FOREIGN KEY (course_id) REFERENCES Course(course_id)
+    FOREIGN KEY (course_id) REFERENCES course(course_id)
 );
 
 
@@ -57,10 +63,8 @@ CREATE TABLE Batch (
 
 
 CREATE TABLE Role (
-    role_id INT PRIMARY KEY AUTO_INCREMENT,
-    rolename VARCHAR(100) NOT NULL,
-    faculty_id INT NOT NULL,
-    FOREIGN KEY (faculty_id) REFERENCES Faculty(faculty_id)  ON DELETE CASCADE
+    role_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    rolename VARCHAR(100) NOT NULL
 );
 
 
@@ -85,12 +89,14 @@ CREATE TABLE Subject (
 
 
 CREATE TABLE Student (
-    student_id INT PRIMARY KEY AUTO_INCREMENT,
+    student_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     studentname VARCHAR(100) NOT NULL,
     email VARCHAR(100) NOT NULL,
-    password VARCHAR(50) NOT NULL,
+    password VARCHAR(255) NOT NULL,
     course_id INT NOT NULL,
-    FOREIGN KEY (course_id) REFERENCES Course(course_id)
+     batch_id INT NOT NULL,
+    FOREIGN KEY (course_id) REFERENCES Course(course_id),
+    FOREIGN KEY (batch_id) REFERENCES batch(batch_id)
 );
 
 
@@ -101,7 +107,7 @@ CREATE TABLE Student (
 
 
 CREATE TABLE FeedbackType (
-    feedbacktype_id INT PRIMARY KEY AUTO_INCREMENT,
+    feedbacktype_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     fbtypename VARCHAR(100) NOT NULL
 );
 
@@ -113,7 +119,7 @@ CREATE TABLE FeedbackType (
 
 
 CREATE TABLE FeedbackModuleType (
-    feedbackmoduletype_id INT PRIMARY KEY AUTO_INCREMENT,
+    feedbackmoduletype_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     fbmoduletypename VARCHAR(100) NOT NULL,
     feedbacktype_id INT NOT NULL,
     FOREIGN KEY (feedbacktype_id) REFERENCES FeedbackType(feedbacktype_id)
@@ -127,7 +133,7 @@ CREATE TABLE FeedbackModuleType (
 
 
 CREATE TABLE FeedbackQuestions (
-    feedbackquestion_id INT PRIMARY KEY AUTO_INCREMENT,
+    feedbackquestion_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     questiontext TEXT NOT NULL,
     feedbacktype_id INT NOT NULL,
     FOREIGN KEY (feedbacktype_id) REFERENCES FeedbackType(feedbacktype_id)
@@ -141,7 +147,7 @@ CREATE TABLE FeedbackQuestions (
 
 
 CREATE TABLE ScheduleFeedback (
-    schedulefeedback_id INT PRIMARY KEY AUTO_INCREMENT,
+    schedulefeedback_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     course_id INT NOT NULL,
     subject_id INT NOT NULL,
     faculty_id INT NOT NULL,
@@ -149,5 +155,13 @@ CREATE TABLE ScheduleFeedback (
     feedbacktype_id INT NOT NULL,
     StartDate DATE NOT NULL,
     EndDate DATE NOT NULL,
-)
+    feedbackmoduletype_id INT,
+    FOREIGN KEY (course_id) REFERENCES course(course_id),
+    FOREIGN KEY (subject_id) REFERENCES subject(subject_id),
+    FOREIGN KEY (faculty_id) REFERENCES faculty(faculty_id),
+    FOREIGN KEY (batch_id) REFERENCES batch(batch_id),
+    FOREIGN KEY (feedbacktype_id) REFERENCES FeedbackType(feedbacktype_id),
+    FOREIGN KEY (feedbackmoduletype_id) REFERENCES FeedbackModuleType(feedbackmoduletype_id)
+);
+
 
