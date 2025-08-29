@@ -165,5 +165,30 @@ router.delete('/:filledfeedbacks_id', async (req, res) => {
   }
 })
 
+  //GET Responses for a specific FilledFeedback
+
+  router.get('/:filledfeedbacks_id/responses', async (req, res) => {
+    const { filledfeedbacks_id } = req.params
+    try {
+      const statement = `
+        SELECT
+          FQ.questiontext,
+          FR.response_rating
+        FROM FeedbackResponses AS FR
+        INNER JOIN FeedbackQuestions AS FQ ON FR.feedbackquestion_id = FQ.feedbackquestion_id
+        WHERE FR.filledfeedbacks_id = ?
+      `
+      const [rows] = await db.execute(statement, [filledfeedbacks_id])
+      if (rows.length === 0) {
+        res.send(utils.createError('No responses found'))
+      } else {
+        res.send(utils.createSuccess(rows))
+      }
+    } catch (ex) {
+      res.send(utils.createError(ex))
+    }
+  })
+  
+  
 
 module.exports = router
