@@ -103,5 +103,38 @@ router.get('/', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
+// GET FilledFeedback by ID (with full info)
+router.get('/:filledfeedbacks_id', async (req, res) => {
+  const { filledfeedbacks_id } = req.params
+  try {
+    const statement = `
+      SELECT
+        FF.filledfeedbacks_id,
+        FF.comments,
+        FF.rating,
+        S.studentname,
+        C.coursename,
+        Sub.subjectname,
+        F.facultyname,
+        SF.StartDate,
+        SF.EndDate
+      FROM FilledFeedback AS FF
+      INNER JOIN Student AS S ON FF.student_id = S.student_id
+      INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
+      INNER JOIN Course AS C ON SF.course_id = C.course_id
+      INNER JOIN Subject AS Sub ON SF.subject_id = Sub.subject_id
+      INNER JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
+      WHERE FF.filledfeedbacks_id = ?
+    `
+    const [rows] = await db.execute(statement, [filledfeedbacks_id])
+    if (rows.length === 0) {
+      res.send(utils.createError('FilledFeedback not found'))
+    } else {
+      res.send(utils.createSuccess(rows[0]))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
 
 module.exports = router
