@@ -1,3 +1,4 @@
+
 const express = require('express')
 const router = express.Router()
 const db = require('../db')
@@ -181,7 +182,6 @@ router.put('/:id', async (request, response) => {
     }
 
 
-   
     // Fetch updated record with JOINs
 
     const getUpdated = `
@@ -213,6 +213,8 @@ router.put('/:id', async (request, response) => {
     response.send(utils.createError(ex.message || ex))
   }
 })
+
+
 
 
 

@@ -20,8 +20,10 @@ router.post('/register', async (req, res) => {
     const encryptedPassword = String(cryptoJs.SHA256(password))
 
     // insert into Admin table
+
     const statement = `INSERT INTO Admin (username, password, email) VALUES (?, ?, ?)`
     const [result] = await db.execute(statement, [username, encryptedPassword, email])
+
 
     res.send(
       utils.createSuccess({
@@ -46,9 +48,11 @@ router.post('/login', async (req, res) => {
   try {
     const encryptedPassword = String(cryptoJs.SHA256(password))
 
+
     // query admin by email and password
     const statement = `SELECT id, username, email FROM Admin WHERE email = ? AND password = ?`
     const [rows] = await db.execute(statement, [email, encryptedPassword])
+
 
     if (rows.length === 0) {
       return res.send(utils.createError('Invalid email or password'))
