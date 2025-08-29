@@ -8,12 +8,12 @@ const config = require('../config')
 
 
 // ========================== Student Registration API ==========================
-// 📌 Registers a new student into the "Student" table
+//  Registers a new student into the "Student" table
 router.post('/register', async (request, response) => {
   const { studentname, email, password, course_id,batch_id} = request.body;
 
   try {
-    // 🔐 Encrypt password using SHA256 before saving into DB
+    //  Encrypt password using SHA256 before saving into DB
     const encryptedPassword = String(cryptoJs.SHA256(password));
 
     // SQL query to insert student details
@@ -31,7 +31,7 @@ router.post('/register', async (request, response) => {
       batch_id
     ])
 
-    // ✅ Send success response
+    //  Send success response
     response.send(utils.createSuccess({
       student_id: result.InsertId, // Newly created student ID
       studentname,
@@ -46,12 +46,12 @@ router.post('/register', async (request, response) => {
 
 
 // ========================== Student Login API ==========================
-// 📌 Validates student credentials and generates JWT token
+//  Validates student credentials and generates JWT token
 router.post('/login', async (request, response) => {
   const { email, password } = request.body;
 
   try {
-    // 🔐 Encrypt entered password
+    //  Encrypt entered password
     const encryptedPassword = String(cryptoJs.SHA256(password));
 
     // SQL query to check if student exists with given email + password
@@ -63,11 +63,11 @@ router.post('/login', async (request, response) => {
 
     const [studentRows] = await db.execute(statement, [email, encryptedPassword])
 
-    // ❌ If no student found
+    //  If no student found
     if (studentRows.length === 0) {
       response.send(utils.createError('User does not exist'))
     } else {
-      // ✅ Student found
+      //  Student found
       const student = studentRows[0]
 
       // Generate JWT token with student data
@@ -96,7 +96,7 @@ router.post('/login', async (request, response) => {
 
 
 // ========================== Update Student API ==========================
- // ✅ Update student details by student_id
+ //  Update student details by student_id
 router.put('/update/:id', async (req, res) => {
   const student_id = req.params.id
   const { studentname, email, password, course_id, batch_id } = req.body
@@ -104,8 +104,8 @@ router.put('/update/:id', async (req, res) => {
   try {
     let encryptedpassword = null
     if (password) {
-      // 🔐 Encrypt password if provided
-      encryptedpassword = String(cryptoJs.SHA256(password))
+      //  Encrypt password if provided
+   encryptedpassword = cryptoJs.SHA256(password).toString()
     }
 
     // SQL Update query (conditionally includes password if provided)
@@ -139,8 +139,29 @@ router.put('/update/:id', async (req, res) => {
 
 
 
+// ========================== Delete Student API ==========================
+//  Delete student by student_id
+router.delete("/delete/:id", (req, res) => {
+  const student_id = req.params.id;
+
+  db.query("DELETE FROM student WHERE student_id = ?", [student_id], (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: err });
+    }
+
+    if (result.affectedRows === 0) {
+      console.error(err)
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    res.json({ message: "Student deleted successfully" });
+  });
+})
+
+
+
 // ========================== Get All Students API ==========================
-// 📌 Fetch all students from Student table
+//  Fetch all students from Student table
 router.get('/getall', async (request, response) => {
   try {
     const statement = `
@@ -157,7 +178,7 @@ router.get('/getall', async (request, response) => {
 
 
 // ========================== Get Profile API ==========================
-// 📌 Fetch logged-in student profile using student_id from JWT
+//  Fetch logged-in student profile using student_id from JWT
 router.get('/profile', async (req, res) => {
   try {
     const student_id = req.data.student_id   // student_id comes from JWT middleware
@@ -180,6 +201,65 @@ router.get('/profile', async (req, res) => {
 })
 
 
+
+
+// ================= Change Password API =================
+router.put('/changepassword', async (req, res) => {
+  try {
+    const student_id = req.data.student_id   // JWT se aya
+    const { oldPassword, newPassword } = req.body
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json(utils.createError('Old and new password dono chahiye'))
+    }
+
+    // Old password encrypt karke verify
+    const encryptedOldPassword = cryptojs.SHA256(oldPassword).toString()
+
+    const [users] = await db.execute(
+      `SELECT student_id FROM student WHERE student_id = ? AND password = ?`,
+      [student_id, encryptedOldPassword]
+    )
+
+    if (users.length === 0) {
+      return res.status(400).json(utils.createError('Old password galat hai'))
+    }
+
+    // New password encrypt
+    const encryptedNewPassword = cryptojs.SHA256(newPassword).toString()
+
+    // Update DB
+    await db.execute(
+      `UPDATE student SET password = ? WHERE student_id = ?`,
+      [encryptedNewPassword, student_id]
+    )
+
+    res.json(utils.createSuccess('Password successfully change ho gaya'))
+  } catch (ex) {
+    res.status(500).json(utils.createError(ex))
+  }
+})
+
+
+//  Delete Student
+router.delete("/:id", (req, res) => {
+  const { id } = req.params;
+  db.query("DELETE FROM student WHERE student_id=?", [id], (err, result) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json({ message: "Student deleted successfully" });
+  });
+});
+
+//  Update Student
+router.put("/:id", (req, res) => {
+  const { id } = req.params;
+  const { name, email, course_id } = req.body;
+  const sql = "UPDATE student SET name=?, email=?, course_id=? WHERE student_id=?";
+  db.query(sql, [name, email, course_id, id], (err, result) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json({ message: "Student updated successfully" });
+  });
+});
 
 
 module.exports = router
