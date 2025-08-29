@@ -22,7 +22,7 @@ const feedbacktypeRoute = require('./routes/feedbacktype')
 const feedbackmoduletypeRoute = require('./routes/feedbackmoduletype')
 const feedbackquestionRoute = require('./routes/feedbackquestion')
 const schedulefeedbackRoute = require('./routes/schedulefeedback')
-const FilledFeedbackRoute = require('./routes/filledfeedback')
+const filledFeedbackRoute = require('./routes/filledfeedback')
 // use routes
 
 app.use('/admin', adminRoute)
@@ -34,7 +34,7 @@ app.use('/feedbacktype',feedbacktypeRoute)
 app.use('/feedbackmoduletype',feedbackmoduletypeRoute)
 app.use('/feedbackquestion',feedbackquestionRoute)
 app.use('/schedulefeedback',schedulefeedbackRoute)
-app.use('/filledfeedback',FilledFeedbackRoute)
+app.use('/filledfeedback',filledFeedbackRoute)
 
 // default route
 app.get('/', (req, res) => {
