@@ -73,13 +73,14 @@ app.use((request, response, next) => {
 
 // add the routes
 
+
 const facultyRouter = require('./routes/faculty')
 const coursecordinatorRouter = require('./routes/coursecordinator')
 //const facultydashboardRouter = require('./routes/facultydashboard')
 const facultyfeedbackpdfRouter = require('./routes/facultyfeedbackpdf')
 
-const studentRoute = require('./routes/student')
-const addfeedbackRoute = require('./routes/addfeedback')
+
+
 const courseRouter = require('./routes/course')   // our new course routes
 const adminRouter = require('./routes/admin')     // your existing admin routes
 const roleRouter = require('./routes/role')
@@ -89,7 +90,8 @@ const feedbacktypeRouter = require('./routes/feedbacktype')
 const feedbackmoduletypeRouter = require('./routes/feedbackmoduletype')
 const feedbackquestionRouter = require('./routes/feedbackquestion')
 const schedulefeedbackRouter = require('./routes/schedulefeedback')
-
+const studentRouter = require('./routes/student')
+const addfeedbackRouter = require('./routes/addfeedback')
 
 
 
@@ -99,8 +101,7 @@ app.use('/coursecordinator', coursecordinatorRouter)
 app.use('/facultyfeedbackpdf', facultyfeedbackpdfRouter)
 
 
-app.use('/student', studentRoute )
-app.use('/addfeedback', addfeedbackRoute)
+
 app.use('/admin', adminRouter)
 app.use('/course', courseRouter)
 app.use('/role', roleRouter)
@@ -110,7 +111,8 @@ app.use('/feedbacktype',feedbacktypeRouter)
 app.use('/feedbackmoduletype',feedbackmoduletypeRouter)
 app.use('/feedbackquestion',feedbackquestionRouter)
 app.use('/schedulefeedback',schedulefeedbackRouter)
-
+app.use('/student', studentRouter )
+app.use('/addfeedback', addfeedbackRouter)
 
 
 

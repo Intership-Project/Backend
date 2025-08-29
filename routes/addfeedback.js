@@ -54,7 +54,7 @@ router.post('/', async (req, res) => {
   }
 })
 
-// ✅ Get all feedbacks
+//  Get all feedbacks
 router.get('/', async (req, res) => {
   try {
     const statement = `SELECT * FROM addfeedback`
@@ -65,8 +65,10 @@ router.get('/', async (req, res) => {
   }
 })
 
-// ✅ Get addfeedback by faculty_id
-router.get('/:faculty_id', async (req, res) => {
+
+//  Get feedbacks by faculty_id
+router.get('/faculty/:faculty_id', async (req, res) => {
+
   try {
     const { faculty_id } = req.params
     const statement = `SELECT * FROM addfeedback WHERE faculty_id = ?`
