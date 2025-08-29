@@ -136,5 +136,34 @@ router.get('/:filledfeedbacks_id', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
+// DELETE FilledFeedback and its FeedbackResponses
+router.delete('/:filledfeedbacks_id', async (req, res) => {
+  const { filledfeedbacks_id } = req.params
+  let connection
+  try {
+    connection = await db.getConnection()
+    await connection.beginTransaction()
+
+    await connection.execute(`DELETE FROM FeedbackResponses WHERE filledfeedbacks_id = ?`, [filledfeedbacks_id])
+    const [result] = await connection.execute(
+      `DELETE FROM FilledFeedback WHERE filledfeedbacks_id = ?`,
+      [filledfeedbacks_id]
+    )
+
+    await connection.commit()
+
+    if (result.affectedRows === 0) {
+      res.send(utils.createError('FilledFeedback not found'))
+    } else {
+      res.send(utils.createSuccess(`Feedback ID ${filledfeedbacks_id} deleted successfully`))
+    }
+  } catch (ex) {
+    if (connection) await connection.rollback()
+    res.send(utils.createError(ex))
+  } finally {
+    if (connection) connection.release()
+  }
+})
+
 
 module.exports = router
