@@ -105,7 +105,7 @@ router.put('/update/:id', async (req, res) => {
     let encryptedpassword = null
     if (password) {
       // 🔐 Encrypt password if provided
-      encryptedpassword = String(cryptoJs.SHA256(password))
+   encryptedpassword = cryptoJs.SHA256(password).toString()
     }
 
     // SQL Update query (conditionally includes password if provided)
@@ -149,6 +149,7 @@ router.delete("/delete/:id", (req, res) => {
     }
 
     if (result.affectedRows === 0) {
+      console.error(err)
       return res.status(404).json({ message: "Student not found" });
     }
 

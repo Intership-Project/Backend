@@ -56,11 +56,11 @@ else {
 
 // add the routes
 
-const studentRoute = require('./routes/student')
-const addfeedbackRoute = require('./routes/addfeedback')
+const studentRouter = require('./routes/student')
+const addfeedbackRouter = require('./routes/addfeedback')
 
-app.use('/student', studentRoute )
-app.use('/addfeedback', addfeedbackRoute)
+app.use('/student', studentRouter )
+app.use('/addfeedback', addfeedbackRouter)
 
 
 app.listen(4000, '0.0.0.0', () => {
