@@ -182,4 +182,63 @@ router.get('/profile', async (req, res) => {
 
 
 
+// ================= Change Password API =================
+router.put('/changepassword', async (req, res) => {
+  try {
+    const student_id = req.data.student_id   // JWT se aya
+    const { oldPassword, newPassword } = req.body
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json(utils.createError('Old and new password dono chahiye'))
+    }
+
+    // Old password encrypt karke verify
+    const encryptedOldPassword = cryptojs.SHA256(oldPassword).toString()
+
+    const [users] = await db.execute(
+      `SELECT student_id FROM student WHERE student_id = ? AND password = ?`,
+      [student_id, encryptedOldPassword]
+    )
+
+    if (users.length === 0) {
+      return res.status(400).json(utils.createError('Old password galat hai'))
+    }
+
+    // New password encrypt
+    const encryptedNewPassword = cryptojs.SHA256(newPassword).toString()
+
+    // Update DB
+    await db.execute(
+      `UPDATE student SET password = ? WHERE student_id = ?`,
+      [encryptedNewPassword, student_id]
+    )
+
+    res.json(utils.createSuccess('Password successfully change ho gaya'))
+  } catch (ex) {
+    res.status(500).json(utils.createError(ex))
+  }
+})
+
+
+// ✅ Delete Student
+router.delete("/:id", (req, res) => {
+  const { id } = req.params;
+  db.query("DELETE FROM student WHERE student_id=?", [id], (err, result) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json({ message: "Student deleted successfully" });
+  });
+});
+
+// ✅ Update Student
+router.put("/:id", (req, res) => {
+  const { id } = req.params;
+  const { name, email, course_id } = req.body;
+  const sql = "UPDATE student SET name=?, email=?, course_id=? WHERE student_id=?";
+  db.query(sql, [name, email, course_id, id], (err, result) => {
+    if (err) return res.status(500).json({ error: err });
+    res.json({ message: "Student updated successfully" });
+  });
+});
+
+
 module.exports = router
