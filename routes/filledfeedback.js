@@ -2,8 +2,11 @@ const express = require('express')
 const router = express.Router()
 const db = require('../db')
 const utils = require('../utils')
+const config = require('../config')
+
 
 const PDFDocument = require('pdfkit')
+
 
 
 
@@ -108,7 +111,6 @@ router.get('/', async (req, res) => {
   }
 })
 
-
 // GET FilledFeedback by ID (with full info)
 router.get('/:filledfeedbacks_id', async (req, res) => {
   const { filledfeedbacks_id } = req.params
@@ -174,31 +176,30 @@ router.delete('/:filledfeedbacks_id', async (req, res) => {
 
   //GET Responses for a specific FilledFeedback
 
-router.get('/:filledfeedbacks_id/responses', async (req, res) => {
-  const { filledfeedbacks_id } = req.params
-  try {
-    const statement = `
-      SELECT
-        FQ.questiontext,
-        FR.response_rating
-      FROM FeedbackResponses AS FR
-      INNER JOIN FeedbackQuestions AS FQ ON FR.feedbackquestion_id = FQ.feedbackquestion_id
-      WHERE FR.filledfeedbacks_id = ?
-    `
-    const [rows] = await db.execute(statement, [filledfeedbacks_id])
-    if (rows.length === 0) {
-      res.send(utils.createError('No responses found'))
-    } else {
-      res.send(utils.createSuccess(rows))
+
+  router.get('/:filledfeedbacks_id/responses', async (req, res) => {
+    const { filledfeedbacks_id } = req.params
+    try {
+      const statement = `
+        SELECT
+          FQ.questiontext,
+          FR.response_rating
+        FROM FeedbackResponses AS FR
+        INNER JOIN FeedbackQuestions AS FQ ON FR.feedbackquestion_id = FQ.feedbackquestion_id
+        WHERE FR.filledfeedbacks_id = ?
+      `
+      const [rows] = await db.execute(statement, [filledfeedbacks_id])
+      if (rows.length === 0) {
+        res.send(utils.createError('No responses found'))
+      } else {
+        res.send(utils.createSuccess(rows))
+      }
+    } catch (ex) {
+      res.send(utils.createError(ex))
     }
-  } catch (ex) {
-    res.send(utils.createError(ex))
-  }
-})
+  })
+     //GET Feedback Summary by Faculty & Course
 
-
-
-   //GET Feedback Summary by Faculty & Course
 
 router.get('/summary/by-faculty-course', async (req, res) => {
   const { faculty_id, course_id } = req.query
@@ -227,6 +228,7 @@ router.get('/summary/by-faculty-course', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
+
 
 
 
@@ -311,7 +313,6 @@ router.get('/download/faculty/:faculty_id', async (req, res) => {
     res.status(500).send(' Error generating faculty feedback PDF')
   }
 })
-
 
 
 module.exports = router
