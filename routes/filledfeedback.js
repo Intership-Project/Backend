@@ -188,7 +188,35 @@ router.delete('/:filledfeedbacks_id', async (req, res) => {
       res.send(utils.createError(ex))
     }
   })
-  
+     //GET Feedback Summary by Faculty & Course
+
+router.get('/summary/by-faculty-course', async (req, res) => {
+  const { faculty_id, course_id } = req.query
+  if (!faculty_id || !course_id) {
+    return res.send(utils.createError('Faculty ID and Course ID are required'))
+  }
+
+  try {
+    const statement = `
+      SELECT
+        FQ.questiontext,
+        SUM(CASE WHEN FR.response_rating='excellent' THEN 1 ELSE 0 END) AS Excellent,
+        SUM(CASE WHEN FR.response_rating='good' THEN 1 ELSE 0 END) AS Good,
+        SUM(CASE WHEN FR.response_rating='satisfactory' THEN 1 ELSE 0 END) AS Satisfactory,
+        SUM(CASE WHEN FR.response_rating='unsatisfactory' THEN 1 ELSE 0 END) AS Unsatisfactory
+      FROM FeedbackResponses AS FR
+      INNER JOIN FeedbackQuestions AS FQ ON FR.feedbackquestion_id = FQ.feedbackquestion_id
+      INNER JOIN FilledFeedback AS FF ON FR.filledfeedbacks_id = FF.filledfeedbacks_id
+      INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
+      WHERE SF.faculty_id = ? AND SF.course_id = ?
+      GROUP BY FQ.feedbackquestion_id
+    `
+    const [rows] = await db.execute(statement, [faculty_id, course_id])
+    res.send(utils.createSuccess(rows))
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
   
 
 module.exports = router
