@@ -7,8 +7,7 @@ const jwt = require('jsonwebtoken')
 const config = require('../config')
 
 
-// Student Registration API 
-//  Registers
+// student Registers
 router.post('/register', async (request, response) => {
   const { studentname, email, password, course_id,batch_id} = request.body;
 
@@ -43,6 +42,8 @@ router.post('/register', async (request, response) => {
     response.send(utils.createError(ex))
   }
 })
+
+
 
 
 //  Student Login API 
@@ -116,6 +117,7 @@ router.post('/login', async (req, res) => {
 })
 
 
+
 //  Forgot Password (Generate Token) 
 router.post('/forgotpassword', async (req, res) => {
   const { email } = req.body
@@ -149,7 +151,7 @@ router.post('/forgotpassword', async (req, res) => {
 })
 
 
-// ========================== Reset Password ==========================
+// Reset Password
 router.post('/resetpassword', async (req, res) => {
   const { resetToken, newPassword } = req.body
 
@@ -175,8 +177,6 @@ router.post('/resetpassword', async (req, res) => {
 
 
 
-
-// Update Student API
  //  Update student details by student_id
 router.put('/update/:id', async (req, res) => {
   const student_id = req.params.id
@@ -220,7 +220,6 @@ router.put('/update/:id', async (req, res) => {
 
 
 
-//  Delete Student API 
 //  Delete student by student_id
 router.delete("/delete/:id", (req, res) => {
   const student_id = req.params.id;
@@ -241,7 +240,7 @@ router.delete("/delete/:id", (req, res) => {
 
 
 
-//  Get All Students API
+
 //  Fetch all students from Student table
 router.get('/getall', async (request, response) => {
   try {
@@ -258,8 +257,7 @@ router.get('/getall', async (request, response) => {
 })
 
 
-//  Get Profile API 
-
+//  Get student Profile 
 router.get('/profile', async (req, res) => {
   try {
     const student_id = req.data.student_id   
@@ -287,14 +285,14 @@ router.get('/profile', async (req, res) => {
 // Change Password API 
 router.put('/changepassword', async (req, res) => {
   try {
-    const student_id = req.data.student_id   // JWT se aya
+    const student_id = req.data.student_id   
     const { oldPassword, newPassword } = req.body
 
     if (!oldPassword || !newPassword) {
       return res.status(400).json(utils.createError('Old and new password is wrong'))
     }
 
-    // Old password encrypt karke verify
+    
     const encryptedOldPassword = cryptoJs.SHA256(oldPassword).toString()
 
     const [users] = await db.execute(
@@ -342,7 +340,8 @@ router.put("/:id", (req, res) => {
   });
 });
 
-//  Submit Feedback API
+
+
 // Student submits feedback 
 router.post('/filledfeedback', async (req, res) => {
   const { student_id, schedulefeedback_id, comments, responses } = req.body
@@ -422,9 +421,6 @@ router.post('/filledfeedback', async (req, res) => {
     connection.release()
   }
 })
-
-
-
 
 
 module.exports = router
