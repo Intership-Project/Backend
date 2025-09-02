@@ -210,11 +210,11 @@ router.put('/changepassword', async (req, res) => {
     const { oldPassword, newPassword } = req.body
 
     if (!oldPassword || !newPassword) {
-      return res.status(400).json(utils.createError('Old and new password dono chahiye'))
+      return res.status(400).json(utils.createError('Old and new password is wrong'))
     }
 
     // Old password encrypt karke verify
-    const encryptedOldPassword = cryptojs.SHA256(oldPassword).toString()
+    const encryptedOldPassword = cryptoJs.SHA256(oldPassword).toString()
 
     const [users] = await db.execute(
       `SELECT student_id FROM student WHERE student_id = ? AND password = ?`,
@@ -222,11 +222,11 @@ router.put('/changepassword', async (req, res) => {
     )
 
     if (users.length === 0) {
-      return res.status(400).json(utils.createError('Old password galat hai'))
+      return res.status(400).json(utils.createError('Old password wrong'))
     }
 
     // New password encrypt
-    const encryptedNewPassword = cryptojs.SHA256(newPassword).toString()
+    const encryptedNewPassword = cryptoJs.SHA256(newPassword).toString()
 
     // Update DB
     await db.execute(
@@ -234,7 +234,7 @@ router.put('/changepassword', async (req, res) => {
       [encryptedNewPassword, student_id]
     )
 
-    res.json(utils.createSuccess('Password successfully change ho gaya'))
+    res.json(utils.createSuccess('Password successfully changed'))
   } catch (ex) {
     res.status(500).json(utils.createError(ex))
   }
@@ -260,6 +260,90 @@ router.put("/:id", (req, res) => {
     res.json({ message: "Student updated successfully" });
   });
 });
+
+// ========================== Submit Feedback API ==========================
+// Student submits feedback (filledfeedback + responses)
+router.post('/filledfeedback', async (req, res) => {
+  const { student_id, schedulefeedback_id, comments, responses } = req.body
+
+  if (!student_id || !schedulefeedback_id || !responses || responses.length === 0) {
+    return res.status(400).json({ error: 'Missing required fields' })
+  }
+
+  const connection = await db.getConnection()
+  await connection.beginTransaction()
+
+  try {
+    // 1. Insert into filledfeedback (rating = 0 initially)
+    const [result] = await connection.execute(
+      `INSERT INTO filledfeedback (student_id, schedulefeedback_id, comments, rating) 
+       VALUES (?, ?, ?, 0)`,
+      [student_id, schedulefeedback_id, comments || null]
+    )
+
+    const filledfeedbacks_id = result.insertId
+
+    // 2. Insert responses (store response_text as response_rating)
+    for (const resp of responses) {
+      await connection.execute(
+        `INSERT INTO feedbackresponses (filledfeedbacks_id, feedbackquestion_id, response_rating)
+         VALUES (?, ?, ?)`,
+        [filledfeedbacks_id, resp.feedbackquestion_id, resp.response_text]
+      )
+    }
+
+    // 3. Update filledfeedback.rating based on average mapping
+    const updateQuery = `
+      UPDATE filledfeedback
+      SET rating = (
+        SELECT ROUND(AVG(
+          CASE
+            WHEN fr.response_rating = 'excellent' THEN 5
+            WHEN fr.response_rating = 'good' THEN 4
+            WHEN fr.response_rating = 'satisfactory' THEN 3
+            WHEN fr.response_rating = 'unsatisfactory' THEN 2
+            ELSE 1
+          END
+        ))
+        FROM feedbackresponses fr
+        WHERE fr.filledfeedbacks_id = ?
+      )
+      WHERE filledfeedbacks_id = ?
+    `
+    await connection.execute(updateQuery, [filledfeedbacks_id, filledfeedbacks_id])
+
+    // 4. Fetch updated filledfeedback and responses
+    const [filledfeedbackRows] = await connection.execute(
+      `SELECT filledfeedbacks_id, student_id, schedulefeedback_id, comments, rating
+       FROM filledfeedback
+       WHERE filledfeedbacks_id = ?`,
+      [filledfeedbacks_id]
+    )
+
+    const [responseRows] = await connection.execute(
+      `SELECT feedbackquestion_id, response_rating AS response_text
+       FROM feedbackresponses
+       WHERE filledfeedbacks_id = ?`,
+      [filledfeedbacks_id]
+    )
+
+    await connection.commit()
+
+    res.json({
+      ...filledfeedbackRows[0],
+      responses: responseRows
+    })
+  } catch (ex) {
+    await connection.rollback()
+    console.error('Feedback submission error:', ex.message)
+    res.status(500).json({ error: ex.sqlMessage || ex.message })
+  } finally {
+    connection.release()
+  }
+})
+
+
+
 
 
 module.exports = router
