@@ -28,12 +28,7 @@ app.use((request, response, next) => {
     const skipUrls = [
         '/faculty/register',
         '/faculty/login',
-<<<<<<< HEAD
-        '/faculty/forgotpassword',
-        '/faculty/resetpassword',
-        '/student/register',
-        '/student/login'
-=======
+
          '/faculty/forgotpassword',
          '/faculty/resetpassword',
          '/student/register', 
@@ -41,7 +36,7 @@ app.use((request, response, next) => {
           '/admin/register',
           '/admin/login'
     
->>>>>>> 6cf1fe7 (FilledFeedback and Submit Feedback for Student)
+
     ]
 
     if (skipUrls.includes(request.url)) {
