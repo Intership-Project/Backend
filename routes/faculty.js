@@ -1,12 +1,17 @@
-const express = require('express')
-const router = express.Router()
-const db = require('../db')
-const utils = require('../utils')
-const cryptoJs = require('crypto-js')
-const jwt = require('jsonwebtoken')
-const config = require('../config')
+const express = require('express');
+const db = require('../db');
+const utils = require('../utils');
+const cryptoJs = require('crypto-js');
+const jwt = require('jsonwebtoken');
+const config = require('../config');
+const path = require('path');
+const fs = require('fs');
+const PDFDocument = require("pdfkit");
+const verifyToken = require('../middlewares/verifyToken');
 
 
+
+const router = express.Router();
 
 // REGISTER Faculty with Role
 router.post('/register', async (req, res) => {
@@ -55,8 +60,8 @@ router.post('/register', async (req, res) => {
 
 
 
+// Faculty Login
 
-// LOGIN Faculty Only
 router.post('/login', async (req, res) => {
     const { email, password, course_id } = req.body;
 
@@ -117,25 +122,35 @@ router.post('/login', async (req, res) => {
 
         }
 
+
+
+         // Determine role for JWT consistently
+    let roleForJWT = faculty.rolename;
+    if (faculty.rolename === 'Trainer' || faculty.rolename === 'Lab Mentor') {
+      roleForJWT = faculty.rolename;
+    }
+
+
         // Generate JWT token
         const token = jwt.sign(
             {
                 faculty_id: faculty.faculty_id,
                 username: faculty.facultyname,
                 email: faculty.email,
-                rolename: faculty.rolename,
+                rolename: roleForJWT,
                 course_id: faculty.course_id || null
             },
             config.secret,
-            { expiresIn: '1h' }
+            { expiresIn: '1d' }
         );
 
         // Send success response
         res.send(utils.createSuccess({
             token,
+            faculty_id: faculty.faculty_id,
             username: faculty.facultyname,
             email: faculty.email,
-            rolename: faculty.rolename,
+            rolename: roleForJWT,
             course_id: faculty.course_id || null
         }));
 
@@ -225,7 +240,7 @@ router.delete('/:faculty_id', async (req, res) => {
         const [result] = await db.execute('DELETE FROM Faculty WHERE faculty_id = ?', [faculty_id]);
         res.send(utils.createSuccess({
             deleted: result.affectedRows,
-            facultyId: id
+            facultyId: faculty_id
         }));
     } catch (ex) {
         res.send(utils.createError(ex));
@@ -313,7 +328,7 @@ router.post('/resetpassword', async (req, res) => {
 
 router.put('/changepassword', async (req, res) => {
     const { oldPassword, newPassword } = req.body
-    const faculty_id = req.data.faculty_id   // 👈 taken from JWT payload
+    const faculty_id = req.data.faculty_id   // taken from JWT payload
 
     try {
         // 1. Get faculty by ID
@@ -354,42 +369,230 @@ router.put('/changepassword', async (req, res) => {
 
 
 
-// GET /faculty/myfeedbackreports/:faculty_id
-router.get("/myfeedbackreports/:faculty_id", async (req, res) => {
-    const { faculty_id } = req.params;
-
-    const sql = `
-          SELECT 
-   af.addfeedback_id, 
-   af.faculty_id,
-   DATE_FORMAT(af.date, '%Y-%m-%d') AS feedback_date, 
-   af.feedbackmoduletype_id AS feedback_type, 
-   c.coursename AS course_name, 
-   s.subjectname AS subject_name, 
-   b.batchname AS batch_name, 
-   af.pdf_file
-FROM addfeedback af
-JOIN course c ON af.course_id = c.course_id
-JOIN batch b ON af.batch_id = b.batch_id
-JOIN subject s ON af.subject_id = s.subject_id
-WHERE af.faculty_id = ? 
-ORDER BY af.date DESC;
 
 
-    `;
 
-    try {
-        const [results] = await db.query(sql, [faculty_id]);  // <-- Promise style
-        res.json({
-            status: "success",
-            data: results
-        });
-    } catch (err) {
-        console.error("SQL Error:", err);
-        res.status(500).json({ status: "error", error: err.message });
+
+
+
+
+//Faculty Feedback Reports (List)
+router.get('/feedbacks', verifyToken, async (req, res) => {
+  try {
+    console.log("JWT Payload from token:", req.data);
+
+    const { faculty_id, rolename } = req.data;
+
+    if (!faculty_id) {
+      return res.status(401).send(utils.createError("Faculty not found in token"));
     }
+
+    // Only Trainer or Lab Mentor allowed
+    if (rolename !== "Trainer" && rolename !== "Lab Mentor") {
+      return res.status(403).send(utils.createError("Only faculty can view their feedback reports"));
+    }
+
+    // Fetch feedbacks
+    const [rows] = await db.execute(
+      `SELECT addfeedback_id, pdf_file, date 
+       FROM addfeedback 
+       WHERE faculty_id = ? AND pdf_file IS NOT NULL
+       ORDER BY date DESC`,
+      [faculty_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).send(utils.createError("No feedback PDFs available"));
+    }
+
+    // Map results with URLs
+    const result = rows.map(row => ({
+      addfeedback_id: row.addfeedback_id,
+      date: row.date,
+      pdf_file: row.pdf_file,
+      view_url: `${req.protocol}://${req.get("host")}/uploads/feedback_reports/${row.pdf_file}`,
+      download_url: `${req.protocol}://${req.get("host")}/faculty/feedbacks/${row.addfeedback_id}/download`
+    }));
+
+    res.status(200).send(utils.createSuccess(result));
+
+  } catch (err) {
+    console.error("Error fetching faculty feedback PDFs:", err);
+    res.status(500).send(utils.createError("Something went wrong while fetching feedback PDFs"));
+  }
 });
 
+
+
+
+
+
+
+
+
+
+
+// Faculty Download Specific Feedback Report
+
+//feedbacks/addfeedbackId/download
+router.get('/feedbacks/:id/download', async (req, res) => {
+  try {
+
+     console.log("JWT Payload from token:", req.data); 
+    const { faculty_id, rolename } = req.data; // from JWT
+    const addfeedback_id = req.params.id;
+
+
+
+     // Security: only Trainer / Lab Mentor allowed
+    if (rolename !== "Trainer" && rolename !== "Lab Mentor") {
+      return res.status(403).send(utils.createError("Access denied"));
+    }
+
+
+
+    // Check if feedback exists for this faculty
+    const [rows] = await db.execute(
+      `SELECT pdf_file 
+       FROM addfeedback 
+       WHERE addfeedback_id = ? AND faculty_id = ? AND pdf_file IS NOT NULL`,
+      [addfeedback_id, faculty_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).send(utils.createError("No PDF found for this feedback"));
+    }
+
+    const pdfFile = rows[0].pdf_file;
+    const filePath = path.join(process.cwd(), 'uploads/feedback_reports', pdfFile);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send(utils.createError("PDF file not found on server"));
+    }
+
+      // Download the file
+    res.download(filePath, pdfFile, (err) => {
+      if (err) {
+        console.error("Error while sending file:", err);
+        res.status(500).send(utils.createError("Error while sending file"));
+      }
+    });
+
+  } catch (err) {
+    console.error("Error in download:", err);
+    res.status(500).send(utils.createError("Something went wrong while downloading PDF"));
+  }
+});
+
+
+
+
+
+
+
+
+
+// GET /faculty/:id/download
+router.get("/faculty/pdf/:id", async (req, res) => {
+  const facultyId = req.params.id;
+  const user = req.data; // JWT decoded data -> { faculty_id, role_id, rolename, ... }
+
+  try {
+    // Role check
+    if (user.rolename === "Course Coordinator") {
+      // CC can download any faculty feedback
+    } else if (user.rolename === "Trainer" || user.rolename === "Lab Mentor") {
+      // Faculty can download only their own feedback
+      if (user.faculty_id != facultyId) {
+        return res.status(403).json({ message: "Access denied: You can only download your own feedback" });
+      }
+    } else {
+      return res.status(403).json({ message: "Unauthorized role" });
+    }
+
+    // Fetch feedback
+    const [rows] = await db.execute(
+      `SELECT 
+          f.comments, 
+          f.response_rating AS rating,
+          q.questiontext AS question,
+          c.coursename AS course,
+          s.subjectname AS subject,
+          b.batchname AS batch
+       FROM filledfeedback f
+       JOIN feedbackquestion q ON f.feedbackquestion_id = q.feedbackquestion_id
+       JOIN course c ON f.course_id = c.course_id
+       JOIN subject s ON f.subject_id = s.subject_id
+       JOIN batch b ON f.batch_id = b.batch_id
+       WHERE f.faculty_id = ?`,
+      [facultyId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "No feedback found for this faculty" });
+    }
+
+    //  Faculty Info
+    const [facultyInfo] = await db.execute(
+      `SELECT facultyname FROM faculty WHERE faculty_id = ?`,
+      [facultyId]
+    );
+    const facultyName = facultyInfo[0]?.facultyname || "N/A";
+
+    //  Generate PDF document
+    const doc = new PDFDocument({ margin: 30 });
+
+    // Common Header
+    doc.fontSize(16).text("Faculty Feedback Report", { align: "center" });
+    doc.moveDown();
+
+    const meta = rows[0];
+    doc.fontSize(12).text(`Faculty ID: ${facultyId}`);
+    doc.text(`Faculty Name: ${facultyName}`);
+    doc.text(`Course: ${meta.course}`);
+    doc.text(`Subject: ${meta.subject}`);
+    doc.text(`Batch: ${meta.batch}`);
+    doc.moveDown();
+
+    // Feedback details
+    rows.forEach((f, index) => {
+      doc.fontSize(12).text(`${index + 1}. ${f.question}`);
+      doc.text(`   ➤ Rating: ${f.rating}`);
+      if (f.comments) doc.text(`   ➤ Comments: ${f.comments}`);
+      doc.moveDown();
+    });
+
+    //  If CC → save temp file + download
+    if (user.rolename === "Course Coordinator") {
+      const filePath = path.join(__dirname, "../uploads/temp", `faculty_${facultyId}_feedback.pdf`);
+      if (!fs.existsSync(path.dirname(filePath))) {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      }
+
+      const writeStream = fs.createWriteStream(filePath);
+      doc.pipe(writeStream);
+      doc.end();
+
+      writeStream.on("finish", () => {
+        res.download(filePath, `faculty_${facultyId}_feedback.pdf`, (err) => {
+          if (err) console.error(err);
+          fs.unlinkSync(filePath); // delete temp file after sending
+        });
+      });
+
+    } else {
+      //  If Faculty → direct stream response
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename=faculty_${facultyId}_feedback.pdf`);
+      doc.pipe(res);
+      doc.end();
+    }
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error generating PDF" });
+  }
+});
 
 
 

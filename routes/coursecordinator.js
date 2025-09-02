@@ -2,54 +2,86 @@ const express = require('express')
 const router = express.Router()
 const db = require('../db')
 const utils = require('../utils')
+const upload = require('../middlewares/upload');
 
 
 
-
-
-// View Faculty Feedbacks
-router.post('/feedbacks', async (req, res) => {
+// GET /coursecordinator/feedbacks
+router.get("/feedbacks", async (req, res) => {
   try {
-    const { role, course_id } = req.body
+    const role = req.data?.rolename;
+    const course_id = req.data?.course_id;
 
-    let query = `
+    if (role !== "Course Coordinator") {
+      return res.send(utils.createError("Not a Course Coordinator"));
+    }
+
+    if (!course_id) {
+      return res.send(utils.createError("Course ID missing in token"));
+    }
+
+    const query = `
       SELECT ff.filledfeedbacks_id,
              ff.comments,
-             ff.rating,
+             ff.rating AS overall_rating,
              s.student_id,
-             s.student_name,
+             s.studentname,
              f.faculty_id,
              f.facultyname AS faculty_name,
              f.email AS faculty_email,
              sf.schedulefeedback_id,
-             sf.course_id
+             sf.course_id,
+             fr.feedbackquestion_id,
+             fr.response_rating
       FROM filledfeedback ff
       JOIN student s ON ff.student_id = s.student_id
       JOIN schedulefeedback sf ON ff.schedulefeedback_id = sf.schedulefeedback_id
       JOIN faculty f ON sf.faculty_id = f.faculty_id
-    `
-    let params = []
+      LEFT JOIN feedbackresponses fr ON ff.filledfeedbacks_id = fr.filledfeedbacks_id
+      WHERE sf.course_id = ?
+      ORDER BY ff.filledfeedbacks_id DESC
+    `;
 
-    if (role === 'Course Coordinator') {
-      if (!course_id) {
-        return res.send(utils.createError("Course must be selected for Course Coordinator"))
-      }
+    const [rows] = await db.execute(query, [course_id]);
 
-      query += ` WHERE sf.course_id = ? ORDER BY ff.filledfeedbacks_id DESC`
-      params.push(course_id)
-
-      const [rows] = await db.execute(query, params)
-      return res.send(utils.createSuccess(rows))
-    } else {
-      // if role not handled yet
-      return res.send(utils.createError("Invalid role or not implemented"))
+    if (rows.length === 0) {
+      return res.send(utils.createError("No feedbacks found for your course"));
     }
+
+    // Aggregate responses per student & per feedback
+    const result = {};
+    rows.forEach(row => {
+      const key = row.filledfeedbacks_id;
+      if (!result[key]) {
+        result[key] = {
+          filledfeedbacks_id: row.filledfeedbacks_id,
+          comments: row.comments,
+          overall_rating: row.overall_rating,
+          student_id: row.student_id,
+          studentname: row.studentname,
+          faculty_id: row.faculty_id,
+          faculty_name: row.faculty_name,
+          faculty_email: row.faculty_email,
+          schedulefeedback_id: row.schedulefeedback_id,
+          course_id: row.course_id,
+          responses: []
+        };
+      }
+      if (row.feedbackquestion_id) {
+        result[key].responses.push({
+          feedbackquestion_id: row.feedbackquestion_id,
+          response_rating: row.response_rating
+        });
+      }
+    });
+
+    res.send(utils.createSuccess(Object.values(result)));
 
   } catch (err) {
-    console.error("Error fetching feedbacks:", err)
-    return res.send(utils.createError("Something went wrong while fetching feedbacks"))
+    console.error("Error fetching feedbacks:", err);
+    return res.send(utils.createError("Something went wrong while fetching feedbacks"));
   }
-})
+});
 
 
 
@@ -57,84 +89,79 @@ router.post('/feedbacks', async (req, res) => {
 
 
 
-// Add New Feedback
 
-router.post('/add-feedback', async (req, res) => {
+
+
+// Add new feedback by CC
+router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
   try {
-    const {
+    const { rolename, course_id: cc_course_id } = req.data; // from JWT
 
-      role_id,
-      course_id,
-      batch_id,
-      subject_id,
-      faculty_id,
-      feedbackmoduletype_id,
-      feedbacktype_id,
-      date,
-      pdf_file
-    } = req.body
-
-
-
-    // Only CC (role_id === 1) can add feedback
-    if (role_id !== 1) {
-      return res.send(utils.createError("Only Course Coordinator can add feedback"))
+    if (rolename !== "Course Coordinator") {
+      return res.send(utils.createError("Only Course Coordinator can add feedback"));
     }
 
+    // Get other fields from body
+    const { batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date } = req.body;
 
-    //  Validate required fields
-    if (!course_id || !batch_id || !subject_id || !faculty_id || !feedbackmoduletype_id || !feedbacktype_id || !date) {
-      return res.send(utils.createError('All required fields must be provided'))
-    }
-
-
-    // Check if CC is allowed to add feedback for this course
-    const [rows] = await db.execute(
-      `SELECT * FROM Faculty WHERE faculty_id = ? AND course_id = ?`,
-      [faculty_id, course_id]
-    )
-    if (rows.length === 0) {
-      return res.send(utils.createError("You can only add feedback for your own course"))
+    if (!subject_id || !faculty_id || !feedbackmoduletype_id || !feedbacktype_id || !date || !req.file) {
+      return res.send(utils.createError("All required fields and PDF must be provided"));
     }
 
 
 
-    //  Insert into DB
-    const statement = `
-      INSERT INTO addfeedback 
-      (course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `
 
-    const [result] = await db.execute(statement, [
-      course_id,
-      batch_id,
-      subject_id,
-      faculty_id,
-      feedbackmoduletype_id,
-      feedbacktype_id,
-      date,
-      pdf_file || null
-    ])
+    // Ensure faculty belongs to CC course
+    const [facultyRows] = await db.execute(
+      "SELECT * FROM faculty WHERE faculty_id = ?",
+      [faculty_id]
+    );
 
-    //  Response
+    if (facultyRows.length === 0) {
+      return res.send(utils.createError("Invalid faculty selected"));
+    }
+
+
+    const facultyRoleId = facultyRows[0].role_id;
+
+
+
+      // Lab Mentor → must have batch
+    if (facultyRoleId === 1 && !batch_id) {
+      return res.send(utils.createError("Batch ID is required for Lab Mentor feedback"));
+    }
+
+
+     // Trainer → ignore batch
+    let finalBatchId = null;
+    if (facultyRoleId === 1) {
+      finalBatchId = batch_id; // Lab Mentor gets batch
+    }
+
+    // Insert into addfeedback
+    const [result] = await db.execute(
+      `INSERT INTO addfeedback 
+        (course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [cc_course_id, finalBatchId, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, req.file.filename]
+    );
+
     res.send(utils.createSuccess({
       addfeedback_id: result.insertId,
-      course_id,
-      batch_id,
+      course_id: cc_course_id,
+      batch_id: finalBatchId,
       subject_id,
       faculty_id,
       feedbackmoduletype_id,
       feedbacktype_id,
       date,
-      pdf_file: pdf_file || null
-    }))
+      pdf_file: req.file.filename
+    }));
+
   } catch (ex) {
-    res.send(utils.createError(ex.message || ex))
+    console.error(ex);
+    res.send(utils.createError(ex.message || "Something went wrong"));
   }
-})
-
-
-
+});
 
 module.exports = router;

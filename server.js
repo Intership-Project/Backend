@@ -1,121 +1,71 @@
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const path = require('path');
+const utils = require('./utils');
 
-const express = require('express')
-const cors = require('cors')
-const db = require('./db')
-const utils = require('./utils')
-const morgan = require('morgan')
-const jwt = require('jsonwebtoken')
-const config = require('./config')
-const PDFDocument = require("pdfkit");
-const fs = require("fs");
-const path = require("path");
+// Routes
+const facultyRouter = require('./routes/faculty');
+const coursecordinatorRouter = require('./routes/coursecordinator');
+const studentRouter = require('./routes/student');
+const addfeedbackRouter = require('./routes/addfeedback');
+const courseRouter = require('./routes/course');
+const adminRouter = require('./routes/admin');
+const roleRouter = require('./routes/role');
+const batchRouter = require('./routes/batch');
+const subjectRouter = require('./routes/subject');
+const feedbacktypeRouter = require('./routes/feedbacktype');
+const feedbackmoduletypeRouter = require('./routes/feedbackmoduletype');
+const feedbackquestionRouter = require('./routes/feedbackquestion');
+const schedulefeedbackRouter = require('./routes/schedulefeedback');
 
+// Import JWT middleware
+const verifyToken = require('./middlewares/verifyToken');
 
+const app = express();
+const PORT = 4000;
 
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// create app
-const app = express()
+// Public routes that do NOT require JWT
+const publicUrls = [
+  '/faculty/register',
+  '/faculty/login',
+  '/faculty/forgotpassword',
+  '/faculty/resetpassword',
+  '/student/register',
+  '/student/login',
+  '/admin/register',
+  '/admin/login'
+];
 
-// enable the CORS
-app.use(cors())
+// Apply verifyToken for protected routes
+app.use((req, res, next) => {
+  if (publicUrls.some(url => req.originalUrl.startsWith(url))) return next();
+  verifyToken(req, res, next);
+});
 
-// enable logging using morgan
-app.use(morgan('combined'))
+// Route mapping
+app.use('/faculty', facultyRouter);
+app.use('/coursecordinator', coursecordinatorRouter);
+app.use('/student', studentRouter);
+app.use('/addfeedback', addfeedbackRouter);
+app.use('/admin', adminRouter);
+app.use('/course', courseRouter);
+app.use('/role', roleRouter);
+app.use('/batch', batchRouter);
+app.use('/subject', subjectRouter);
+app.use('/feedbacktype', feedbacktypeRouter);
+app.use('/feedbackmoduletype', feedbackmoduletypeRouter);
+app.use('/feedbackquestion', feedbackquestionRouter);
+app.use('/schedulefeedback', schedulefeedbackRouter);
 
-// set the middleware
-app.use(express.json())
+// Serve uploaded PDFs
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads/feedback_reports')));
 
-
-app.use(express.urlencoded({ extended: true }))
-
-
-// configure protected routes
-
-app.use((request, response, next) => {
-
-    const skipUrls = [
-        
-        '/faculty/register', 
-        '/faculty/login',
-         '/faculty/forgotpassword',
-         '/faculty/resetpassword',
-         '/student/register', 
-         '/student/login'
-    
-    ]
-    if (skipUrls.findIndex((item) => item == request.url) != -1) {
-
-        next()
-
-    }
-    else {
-
-        const token = request.headers['token']
-        if (!token) {
-            response.send(utils.createError('missing token'))
-
-        } else {
-            try {
-                const payload = jwt.verify(token, config.secret)
-                request.data = payload
-                next()
-
-            } catch (ex) {
-                response.send(utils.createError('invalid token'))
-            }
-
-        }
-    }
-
-
-})
-
-
-// add the routes
-
-const facultyRouter = require('./routes/faculty')
-const coursecordinatorRouter = require('./routes/coursecordinator')
-//const facultydashboardRouter = require('./routes/facultydashboard')
-const facultyfeedbackpdfRouter = require('./routes/facultyfeedbackpdf')
-
-const studentRoute = require('./routes/student')
-const addfeedbackRoute = require('./routes/addfeedback')
-const courseRouter = require('./routes/course')   // our new course routes
-const adminRouter = require('./routes/admin')     // your existing admin routes
-const roleRouter = require('./routes/role')
-const batchRouter = require('./routes/batch')
-const subjectRouter = require('./routes/subject')
-const feedbacktypeRouter = require('./routes/feedbacktype')
-const feedbackmoduletypeRouter = require('./routes/feedbackmoduletype')
-const feedbackquestionRouter = require('./routes/feedbackquestion')
-const schedulefeedbackRouter = require('./routes/schedulefeedback')
-
-
-
-
-app.use('/faculty', facultyRouter)
-//app.use('/facultydashboard', facultydashboardRouter)
-app.use('/coursecordinator', coursecordinatorRouter)
-app.use('/facultyfeedbackpdf', facultyfeedbackpdfRouter)
-
-
-app.use('/student', studentRoute )
-app.use('/addfeedback', addfeedbackRoute)
-app.use('/admin', adminRouter)
-app.use('/course', courseRouter)
-app.use('/role', roleRouter)
-app.use('/batch', batchRouter)
-app.use('/subject',subjectRouter)
-app.use('/feedbacktype',feedbacktypeRouter)
-app.use('/feedbackmoduletype',feedbackmoduletypeRouter)
-app.use('/feedbackquestion',feedbackquestionRouter)
-app.use('/schedulefeedback',schedulefeedbackRouter)
-
-
-
-
-app.listen(4000, '0.0.0.0', () => {
-    console.log('server started on port 4000')
-
-})
-
+app.listen(PORT, () => {
+  console.log(`Server started on port ${PORT}`);
+});
