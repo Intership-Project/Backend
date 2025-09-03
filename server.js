@@ -49,6 +49,7 @@ app.use((req, res, next) => {
 });
 
 // -------------------- Routes --------------------
+const studentRouter = require('./routes/student');
 const adminRouter = require('./routes/admin');
 const courseRouter = require('./routes/course');
 const roleRouter = require('./routes/role');
@@ -66,11 +67,29 @@ const coursecordinatorRouter = require('./routes/coursecordinator');
 
 // Only include this if the file exists
 // const facultyfeedbackpdfRouter = require('./routes/facultyfeedbackpdf');
-const studentRouter = require('./routes/student');
 
+
+
+// Register routes
+app.use('/admin', adminRouter);
+app.use('/course', courseRouter);
+app.use('/role', roleRouter);
+app.use('/batch', batchRouter);
+app.use('/subject', subjectRouter);
+app.use('/feedbacktype', feedbacktypeRouter);
+app.use('/feedbackmoduletype', feedbackmoduletypeRouter);
+app.use('/feedbackquestion', feedbackquestionRouter);
+app.use('/schedulefeedback', schedulefeedbackRouter);
+app.use('/filledfeedback', filledfeedbackRouter);
+app.use('/addfeedback', addfeedbackRouter);
+app.use('/faculty', facultyRouter);
+app.use('/coursecordinator', coursecordinatorRouter);
+// app.use('/facultydashboard', facultydashboardRouter);
+// app.use('/facultyfeedbackpdf', facultyfeedbackpdfRouter);
+app.use('/student', studentRouter);
 
 
 // -------------------- Start Server --------------------
 app.listen(4000, '0.0.0.0', () => {
-    console.log('Server started on port 4000');
+    console.log('Server started on port 3000');
 });
