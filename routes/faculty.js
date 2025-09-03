@@ -165,9 +165,19 @@ router.post('/login', async (req, res) => {
 
 // GET all Faculties (GET)
 
-router.get('/', async (req, res) => {
+router.get('/',verifyToken, async (req, res) => {
     try {
-        const [rows] = await db.execute('SELECT f.faculty_id, f.facultyname, f.email, r.rolename FROM Faculty f JOIN Role r ON f.role_id = r.role_id');
+
+        if (req.data.usertype !== 'Admin') {
+      return res.status(403).send(utils.createError('Only Admin can access this API'));
+    }
+
+
+        const [rows] = await db.execute(
+          
+          'SELECT f.faculty_id, f.facultyname, f.email, r.rolename FROM Faculty f JOIN Role r ON f.role_id = r.role_id'
+        
+        );
         res.send(utils.createSuccess(rows));
     } catch (ex) {
         res.send(utils.createError(ex));
@@ -234,9 +244,16 @@ router.put('/profile', async (req, res) => {
 
 // DELETE Faculty (DELETE)
 
-router.delete('/:faculty_id', async (req, res) => {
+router.delete('/:faculty_id',verifyToken, async (req, res) => {
     const { faculty_id } = req.params;
     try {
+
+        // Only Admin can delete
+        if (req.data.usertype !== 'Admin') {
+            return res.status(403).send(utils.createError('Only Admin can delete faculty'));
+        }
+
+
         const [result] = await db.execute('DELETE FROM Faculty WHERE faculty_id = ?', [faculty_id]);
         res.send(utils.createSuccess({
             deleted: result.affectedRows,
@@ -323,50 +340,38 @@ router.post('/resetpassword', async (req, res) => {
 
 
 
+// FACULTY CHANGE PASSWORD
+router.put('/changepassword', verifyToken, async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  const { faculty_id, rolename } = req.data; // from JWT payload
 
-//  FACULTY CHANGE PASSWORD 
+  // Only Trainer or Lab Mentor can change password
+  if (rolename !== "Trainer" && rolename !== "Lab Mentor") {
+    return res.status(403).send(utils.createError("Only Trainer or Lab Mentor can change password"));
+  }
 
-router.put('/changepassword', async (req, res) => {
-    const { oldPassword, newPassword } = req.body
-    const faculty_id = req.data.faculty_id   // taken from JWT payload
-
-    try {
-        // 1. Get faculty by ID
-        const [rows] = await db.execute(
-            `SELECT password FROM faculty WHERE faculty_id = ?`,
-            [faculty_id]
-        )
-
-        if (rows.length === 0) {
-            return res.send(utils.createError('Faculty not found'))
-        }
-
-        const faculty = rows[0]
-
-        // 2. Hash old password with CryptoJS (same as stored)
-        const oldHash = cryptoJs.SHA256(oldPassword).toString()
-
-        if (oldHash !== faculty.password) {
-            return res.send(utils.createError('Old password is incorrect'))
-        }
-
-        // 3. Hash new password with CryptoJs
-        const newHash = cryptoJs.SHA256(newPassword).toString()
-
-        // 4. Update password in DB
-        await db.execute(
-            `UPDATE faculty SET password = ? WHERE faculty_id = ?`,
-            [newHash, faculty_id]
-        )
-
-        res.send(utils.createSuccess('Password changed successfully'))
-    } catch (ex) {
-        console.error("Change password error:", ex)
-        res.send(utils.createError("Something went wrong in change-password"))
+  try {
+    // Verify faculty exists
+    const [rows] = await db.execute(`SELECT password FROM faculty WHERE faculty_id = ?`, [faculty_id]);
+    if (rows.length === 0) {
+      return res.send(utils.createError('Faculty not found'));
     }
-})
 
+    // Check old password
+    const oldHash = cryptoJs.SHA256(oldPassword).toString();
+    if (oldHash !== rows[0].password) {
+      return res.send(utils.createError('Old password is incorrect'));
+    }
 
+    // Update new password
+    const newHash = cryptoJs.SHA256(newPassword).toString();
+    await db.execute(`UPDATE faculty SET password = ? WHERE faculty_id = ?`, [newHash, faculty_id]);
+
+    res.send(utils.createSuccess('Password changed successfully'));
+  } catch (ex) {
+    res.send(utils.createError("Something went wrong in change-password"));
+  }
+});
 
 
 
@@ -427,11 +432,6 @@ router.get('/feedbacks', verifyToken, async (req, res) => {
 
 
 
-
-
-
-
-
 // Faculty Download Specific Feedback Report
 
 //feedbacks/addfeedbackId/download
@@ -455,8 +455,8 @@ router.get('/feedbacks/:id/download', async (req, res) => {
     const [rows] = await db.execute(
       `SELECT pdf_file 
        FROM addfeedback 
-       WHERE addfeedback_id = ? AND faculty_id = ? AND pdf_file IS NOT NULL`,
-      [addfeedback_id, faculty_id]
+       WHERE addfeedback_id = ?  AND pdf_file IS NOT NULL`,
+      [addfeedback_id]
     );
 
     if (rows.length === 0) {
@@ -483,8 +483,6 @@ router.get('/feedbacks/:id/download', async (req, res) => {
     res.status(500).send(utils.createError("Something went wrong while downloading PDF"));
   }
 });
-
-
 
 
 

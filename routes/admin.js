@@ -65,10 +65,11 @@ router.post('/login', async (req, res) => {
       {
         id: admin.id,
         username: admin.username,
-        email: admin.email
+        email: admin.email,
+         usertype: 'Admin' 
       },
       config.secret,
-      { expiresIn: '1h' } // optional expiration
+      { expiresIn: '1d' } // optional expiration
     )
 
     res.send(
@@ -76,7 +77,8 @@ router.post('/login', async (req, res) => {
         token,
         adminId: admin.id,
         username: admin.username,
-        email: admin.email
+        email: admin.email,
+        usertype: 'Admin'
       })
     )
   } catch (ex) {
