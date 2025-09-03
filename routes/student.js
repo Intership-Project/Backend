@@ -11,6 +11,17 @@ const config = require('../config')
 router.post('/register', async (request, response) => {
   const { studentname, email, password, course_id,batch_id} = request.body;
 
+
+  // ✅ Validation
+  if (!studentname || !email || !password || !course_id || !batch_id) {
+    return response.status(400).json({
+      status: 'error',
+      message: 'Missing required fields',
+      received: request.body // helpful for debugging
+    });
+
+    
+  }
   try {
     //  Encrypt password using SHA256 before saving into DB
     const encryptedPassword = String(cryptoJs.SHA256(password));
@@ -32,7 +43,7 @@ router.post('/register', async (request, response) => {
 
     //  Send success response
     response.send(utils.createSuccess({
-      student_id: result.InsertId,
+      student_id: result.insertId,
       studentname,
       email,
       course_id,
@@ -40,6 +51,7 @@ router.post('/register', async (request, response) => {
     }))
   } catch (ex) {
     response.send(utils.createError(ex))
+    console.error(ex);
   }
 })
 
