@@ -66,10 +66,12 @@ router.post('/login', async (req, res) => {
         id: admin.id,
         username: admin.username,
         email: admin.email,
-         usertype: 'Admin' 
+        usertype: 'Admin'
       },
       config.secret,
+
       { expiresIn: '1d' } // optional expiration
+
     )
 
     res.send(
