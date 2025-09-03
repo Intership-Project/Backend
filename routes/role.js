@@ -66,6 +66,8 @@ router.get('/:id', async (request, response) => {
       response.send(utils.createError(ex))
     }
   })
+
+  //delete role by id
   router.delete('/:id', async (request, response) => {
     const { id } = request.params
   

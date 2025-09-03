@@ -31,7 +31,9 @@ app.use((request, response, next) => {
         '/faculty/forgotpassword',
         '/faculty/resetpassword',
         '/student/register',
-        '/student/login'
+        '/student/login',
+        '/admin/register',
+        '/admin/login'
     ]
 
     if (skipUrls.includes(request.url)) {
@@ -63,7 +65,7 @@ const feedbackmoduletypeRouter = require('./routes/feedbackmoduletype')
 const feedbackquestionRouter = require('./routes/feedbackquestion')
 const schedulefeedbackRouter = require('./routes/schedulefeedback')
 const filledfeedbackRouter = require('./routes/filledfeedback')
-const addfeedbackRouter = require('./routes/addfeedback')
+//const addfeedbackRouter = require('./routes/addfeedback')
 const facultyRouter = require('./routes/faculty')
 const coursecordinatorRouter = require('./routes/coursecordinator')
 //const facultydashboardRouter = require('./routes/facultydashboard')
@@ -81,7 +83,7 @@ app.use('/feedbackmoduletype', feedbackmoduletypeRouter)
 app.use('/feedbackquestion', feedbackquestionRouter)
 app.use('/schedulefeedback', schedulefeedbackRouter)
 app.use('/filledfeedback', filledfeedbackRouter)
-app.use('/addfeedback', addfeedbackRouter)
+//app.use('/addfeedback', addfeedbackRouter)
 app.use('/faculty', facultyRouter)
 app.use('/coursecordinator', coursecordinatorRouter)
 //app.use('/facultydashboard', facultydashboardRouter)
@@ -94,7 +96,7 @@ app.get('/', (req, res) => {
 })
 
 // -------------------- Start Server --------------------
-const PORT = process.env.PORT || 4000
+const PORT = process.env.PORT || 3000
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server started on port ${PORT}`)
 })

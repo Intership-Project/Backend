@@ -68,7 +68,7 @@ router.post('/login', async (req, res) => {
         email: admin.email
       },
       config.secret,
-      { expiresIn: '1h' } // optional expiration
+      { expiresIn: '5h' } // optional expiration
     )
 
     res.send(
