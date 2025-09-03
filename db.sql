@@ -165,3 +165,48 @@ CREATE TABLE ScheduleFeedback (
 );
 
 
+-- 13. FilledFeedback Table
+
+
+CREATE TABLE filledfeedback (
+    filledfeedbacks_id INT NOT NULL AUTO_INCREMENT,
+    student_id INT NOT NULL,
+    schedulefeedback_id INT NOT NULL,
+    comments TEXT NULL,
+    rating INT NULL,
+    PRIMARY KEY (filledfeedbacks_id),
+    KEY student_id (student_id),
+    KEY schedulefeedback_id (schedulefeedback_id)
+);
+
+
+-- 14. FeedbackResponses Table
+
+
+CREATE TABLE feedbackresponses (
+    filledfeedbacks_id INT NOT NULL,
+    feedbackquestion_id INT NOT NULL,
+    response_rating VARCHAR(20) NOT NULL,
+    PRIMARY KEY (filledfeedbacks_id, feedbackquestion_id)
+);
+
+
+-- 15. AddFeedback Table
+
+
+CREATE TABLE addfeedback (
+    addfeedback_id INT NOT NULL AUTO_INCREMENT,
+    course_id INT NOT NULL,
+    batch_id INT NULL,
+    subject_id INT NOT NULL,
+    faculty_id INT NOT NULL,
+    feedbackmoduletype_id INT NOT NULL,
+    feedbacktype_id INT NOT NULL,
+    date DATE NOT NULL,
+    pdf_file VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (addfeedback_id)
+);
+
+
+

@@ -1,3 +1,4 @@
+
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -18,6 +19,7 @@ const feedbacktypeRouter = require('./routes/feedbacktype');
 const feedbackmoduletypeRouter = require('./routes/feedbackmoduletype');
 const feedbackquestionRouter = require('./routes/feedbackquestion');
 const schedulefeedbackRouter = require('./routes/schedulefeedback');
+const filledfeedbackRouter = require('./routes/filledfeedback')
 
 // Import JWT middleware
 const verifyToken = require('./middlewares/verifyToken');
@@ -30,17 +32,21 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+
 // Public routes that do NOT require JWT
 const publicUrls = [
   '/faculty/register',
   '/faculty/login',
   '/faculty/forgotpassword',
   '/faculty/resetpassword',
+  '/student/forgotpassword',
+  '/student/resetpassword',
   '/student/register',
   '/student/login',
   '/admin/register',
   '/admin/login'
 ];
+
 
 // Apply verifyToken for protected routes
 app.use((req, res, next) => {
@@ -57,11 +63,13 @@ app.use('/admin', adminRouter);
 app.use('/course', courseRouter);
 app.use('/role', roleRouter);
 app.use('/batch', batchRouter);
+app.use('/filledfeedback', filledfeedbackRouter);
 app.use('/subject', subjectRouter);
 app.use('/feedbacktype', feedbacktypeRouter);
 app.use('/feedbackmoduletype', feedbackmoduletypeRouter);
 app.use('/feedbackquestion', feedbackquestionRouter);
 app.use('/schedulefeedback', schedulefeedbackRouter);
+
 
 // Serve uploaded PDFs
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads/feedback_reports')));
@@ -69,3 +77,4 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads/feedback_re
 app.listen(PORT, () => {
   console.log(`Server started on port ${PORT}`);
 });
+

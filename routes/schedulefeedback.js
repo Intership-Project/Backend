@@ -59,7 +59,9 @@ router.post('/register', async (request, response) => {
   }
 })
 
+
 // GET All Schedule Feedbacks
+
 router.get('/', async (request, response) => {
   try {
     const statement = `
@@ -91,7 +93,9 @@ router.get('/', async (request, response) => {
   }
 })
 
+
 // GET Schedule Feedback by ID
+
 router.get('/:id', async (request, response) => {
   const { id } = request.params
   try {
@@ -130,7 +134,9 @@ router.get('/:id', async (request, response) => {
   }
 })
 
+
 // UPDATE Schedule Feedback with full info
+
 router.put('/:id', async (request, response) => {
   const { id } = request.params
   const { 
@@ -158,7 +164,9 @@ router.put('/:id', async (request, response) => {
       batchValue = batch_id
     }
 
+
     // Update record
+
     const statement = `
       UPDATE ScheduleFeedback
       SET course_id = ?, subject_id = ?, faculty_id = ?, batch_id = ?, feedbacktype_id = ?, StartDate = ?, EndDate = ?, feedbackmoduletype_id = ?
@@ -173,7 +181,9 @@ router.put('/:id', async (request, response) => {
       return response.send(utils.createError('Schedule Feedback not found'))
     }
 
+
     // Fetch updated record with JOINs
+
     const getUpdated = `
       SELECT 
         sf.schedulefeedback_id,
@@ -205,6 +215,9 @@ router.put('/:id', async (request, response) => {
 })
 
 
+
+
+
 //DELETE Schedule Feedback
 router.delete('/:id', async (request, response) => {
   const { id } = request.params
@@ -221,5 +234,6 @@ router.delete('/:id', async (request, response) => {
     response.send(utils.createError(ex))
   }
 })
+
 module.exports = router
 
