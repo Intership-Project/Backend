@@ -92,38 +92,6 @@ router.get("/all", async (req, res) => {
   }
 });
 
-// ✅ Get Feedbacks by Faculty ID
-router.get("/by-faculty/:faculty_id", async (req, res) => {
-  try {
-    const { faculty_id } = req.params;
-
-    const [rows] = await db.execute(
-      `SELECT af.addfeedback_id, af.course_id, c.coursename, 
-              af.batch_id, b.batchname,
-              af.subject_id, s.subjectname,
-              af.faculty_id, f.facultyname,
-              af.feedbackmoduletype_id, af.feedbacktype_id, 
-              af.date, af.pdf_file, af.created_at
-       FROM Addfeedback af
-       LEFT JOIN Course c ON af.course_id = c.course_id
-       LEFT JOIN Batch b ON af.batch_id = b.batch_id
-       LEFT JOIN Subject s ON af.subject_id = s.subject_id
-       LEFT JOIN Faculty f ON af.faculty_id = f.faculty_id
-       WHERE af.faculty_id = ?
-       ORDER BY af.created_at DESC`,
-      [faculty_id]
-    );
-
-    if (rows.length === 0) {
-      return res.send(utils.createError("No feedbacks found for this faculty"));
-    }
-
-    res.send(utils.createSuccess(rows));
-  } catch (ex) {
-    console.error(ex);
-    res.send(utils.createError(ex.message || "Something went wrong"));
-  }
-});
 
 
 module.exports = router;
