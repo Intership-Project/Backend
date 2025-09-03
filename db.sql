@@ -1,112 +1,167 @@
 
 -- 1. Create Database
+
 CREATE DATABASE feedback_system;
+
 USE feedback_system;
 
--- 1. Admin Table
+
+-- 2. Admin Table
+
 CREATE TABLE Admin (
-    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50),
-    password VARCHAR(222)
+    id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    username VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL
 );
 
--- 2. Faculty Table
+
+
+-- 3. Faculty Table
+
 CREATE TABLE Faculty (
-    faculty_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    facultyname VARCHAR(100),
-    email VARCHAR(100),
-    password VARCHAR(500)
+    faculty_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    facultyname VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255),
+    role_id INT,
+    course_id INT,
+     FOREIGN KEY (role_id) REFERENCES role(role_id),
+    FOREIGN KEY (course_id) REFERENCES course(course_id)
+
 );
 
--- 3. Course Table
+
+
+-- 4. Course Table
+
+
 CREATE TABLE Course (
-    course_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    coursename VARCHAR(100)
+    course_id INT PRIMARY KEY AUTO_INCREMENT,
+    coursename VARCHAR(100) NOT NULL
 );
 
--- 4. Batch Table
+
+
+
+-- 5. Batch Table
+
+
+
 CREATE TABLE Batch (
-    batch_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    batchname VARCHAR(100),
-    course_id INT,
-    FOREIGN KEY (course_id) REFERENCES Course(course_id)
+    batch_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    batchname VARCHAR(100) NOT NULL,
+    course_id INT NOT NULL,
+    FOREIGN KEY (course_id) REFERENCES course(course_id)
 );
 
--- 5. Role Table
+
+
+
+-- 6. Role Table
+
+
+
 CREATE TABLE Role (
-    role_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    rolename VARCHAR(100),
-    faculty_id INT,
-    FOREIGN KEY (faculty_id) REFERENCES Faculty(faculty_id)
+    role_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    rolename VARCHAR(100) NOT NULL
 );
 
--- 6. Subject Table
+
+
+
+-- 7. Subject Table
+
+
+
 CREATE TABLE Subject (
-    subject_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    subjectname VARCHAR(100),
-    course_id INT,
+    subject_id INT PRIMARY KEY AUTO_INCREMENT,
+    subjectname VARCHAR(100) NOT NULL,
+    course_id INT NOT NULL,
     FOREIGN KEY (course_id) REFERENCES Course(course_id)
 );
 
--- 7. Student Table
+
+
+
+-- 8. Student Table
+
+
+
 CREATE TABLE Student (
-    student_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    studentname VARCHAR(100),
-    email VARCHAR(100),
-    password VARCHAR(500),
-    course_id INT,
-    FOREIGN KEY (course_id) REFERENCES Course(course_id)
-);
-
--- 8. FeedbackType Table
-CREATE TABLE FeedbackType (
-    feedbacktype_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    fbtypename VARCHAR(100)
-);
-
--- 9. FeedbackModuleType Table
-CREATE TABLE FeedbackModuleType (
-    feedbackmoduletype_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    fbmoduletypename VARCHAR(100),
-    feedbacktype_id INT,
-    FOREIGN KEY (feedbacktype_id) REFERENCES FeedbackType(feedbacktype_id)
-);
-
--- 10. FeedbackQuestions Table
-CREATE TABLE FeedbackQuestions (
-    feedbackquestion_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    questiontext TEXT,
-    feedbacktype_id INT,
-    FOREIGN KEY (feedbacktype_id) REFERENCES FeedbackType(feedbacktype_id)
-);
-
--- 11. ScheduleFeedback Table
-CREATE TABLE ScheduleFeedback (
-    schedulefeedback_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    course_id INT,
-    subject_id INT,
-    faculty_id INT,
-    batch_id INT,
-    feedbacktype_id INT,
-    StartDate DATE,
-    EndDate DATE,
+    student_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    studentname VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    course_id INT NOT NULL,
+     batch_id INT NOT NULL,
     FOREIGN KEY (course_id) REFERENCES Course(course_id),
-    FOREIGN KEY (subject_id) REFERENCES Subject(subject_id),
-    FOREIGN KEY (faculty_id) REFERENCES Faculty(faculty_id),
-    FOREIGN KEY (batch_id) REFERENCES Batch(batch_id),
+    FOREIGN KEY (batch_id) REFERENCES batch(batch_id)
+);
+
+
+
+
+-- 9. FeedbackType Table
+
+
+
+CREATE TABLE FeedbackType (
+    feedbacktype_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    fbtypename VARCHAR(100) NOT NULL
+);
+
+
+
+
+-- 10. FeedbackModuleType Table
+
+
+
+CREATE TABLE FeedbackModuleType (
+    feedbackmoduletype_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    fbmoduletypename VARCHAR(100) NOT NULL,
+    feedbacktype_id INT NOT NULL,
     FOREIGN KEY (feedbacktype_id) REFERENCES FeedbackType(feedbacktype_id)
 );
 
--- 12. FilledFeedbacks Table
-CREATE TABLE FilledFeedback (
-    filledfeedbacks_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    student_id INT,
-    schedulefeedback_id INT,
-    comments TEXT,
-    rating INT,
-    FOREIGN KEY (student_id) REFERENCES Student(student_id),
-    FOREIGN KEY (schedulefeedback_id) REFERENCES ScheduleFeedback(schedulefeedback_id)
+
+
+
+-- 11. FeedbackQuestions Table
+
+
+
+CREATE TABLE FeedbackQuestions (
+    feedbackquestion_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    questiontext TEXT NOT NULL,
+    feedbacktype_id INT NOT NULL,
+    FOREIGN KEY (feedbacktype_id) REFERENCES FeedbackType(feedbacktype_id)
 );
 
+
+
+
+-- 12. ScheduleFeedback Table
+
+
+
+CREATE TABLE ScheduleFeedback (
+    schedulefeedback_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
+    course_id INT NOT NULL,
+    subject_id INT NOT NULL,
+    faculty_id INT NOT NULL,
+    batch_id INT NOT NULL,
+    feedbacktype_id INT NOT NULL,
+    StartDate DATE NOT NULL,
+    EndDate DATE NOT NULL,
+    feedbackmoduletype_id INT,
+    FOREIGN KEY (course_id) REFERENCES course(course_id),
+    FOREIGN KEY (subject_id) REFERENCES subject(subject_id),
+    FOREIGN KEY (faculty_id) REFERENCES faculty(faculty_id),
+    FOREIGN KEY (batch_id) REFERENCES batch(batch_id),
+    FOREIGN KEY (feedbacktype_id) REFERENCES FeedbackType(feedbacktype_id),
+    FOREIGN KEY (feedbackmoduletype_id) REFERENCES FeedbackModuleType(feedbackmoduletype_id)
+);
 
 

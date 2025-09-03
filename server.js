@@ -1,89 +1,76 @@
-const express = require('express')
-const cors = require('cors')
-const morgan = require('morgan')
-const utils = require('./utils')
-const jwt = require('jsonwebtoken')
-const config = require('./config')
+const express = require('express');
+const cors = require('cors');
+const morgan = require('morgan');
+const jwt = require('jsonwebtoken');
+const config = require('./config');
+const utils = require('./utils');
 
-//cretae new app
+// optional (for future PDF generation)
+const PDFDocument = require("pdfkit");
+const fs = require("fs");
+const path = require("path");
 
-const app = express()
-app.use(cors())
-app.use(morgan('combined'))
-app.use(express.json())
-app.use(express.urlencoded({extended: true}))
+// Import JWT middleware
+const verifyToken = require('./middlewares/verifyToken');
 
+const app = express();
 
-//config protected routes
-app.use((request,response,next) => {
+// -------------------- Middleware --------------------
+app.use(cors());
+app.use(morgan('combined'));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-  const skipurls = ['/student/register',
+// -------------------- JWT Middleware --------------------
+const publicUrls = [
+    '/faculty/register',
+    '/faculty/login',
+    '/faculty/forgotpassword',
+    '/faculty/resetpassword',
+    '/student/register',
     '/student/login',
-     '/admin/register',   // ✅ admin register ko skip karo
-    '/admin/login' ]
-  if(skipurls.findIndex((item) => item == request.url) != -1) {
-    next()
-  }
-  else{
-    const token = request.headers['token']
-    if(!token){
-      response.send(utils.createError('missing token'))
-    }else{
-      try {
-        const payload = jwt.verify(token,config.secret)
-        request.data=payload
-        next()
-        
-      } catch (ex) {
-        response.send(utils.createError('invalid token'))
-        
-      }
+    '/admin/register',
+    '/admin/login'
+];
+
+app.use((req, res, next) => {
+    if (publicUrls.includes(req.url)) return next();
+
+    const token = req.headers['token'];
+    if (!token) return res.send(utils.createError('missing token'));
+
+    try {
+        const payload = jwt.verify(token, config.secret);
+        req.data = payload;
+        next();
+    } catch (ex) {
+        res.send(utils.createError('invalid token'));
     }
-  }
-})
+});
 
-//add routes
+// -------------------- Routes --------------------
+const adminRouter = require('./routes/admin');
+const courseRouter = require('./routes/course');
+const roleRouter = require('./routes/role');
+const batchRouter = require('./routes/batch');
+const subjectRouter = require('./routes/subject');
+const feedbacktypeRouter = require('./routes/feedbacktype');
+const feedbackmoduletypeRouter = require('./routes/feedbackmoduletype');
+const feedbackquestionRouter = require('./routes/feedbackquestion');
+const schedulefeedbackRouter = require('./routes/schedulefeedback');
+const filledfeedbackRouter = require('./routes/filledfeedback');
+const addfeedbackRouter = require('./routes/addfeedback');
+const facultyRouter = require('./routes/faculty');
+const coursecordinatorRouter = require('./routes/coursecordinator');
+// const facultydashboardRouter = require('./routes/facultydashboard');
 
-
-const adminRoute = require('./routes/admin')
-const courseRoute = require('./routes/course')
-const  roleRoute = require('./routes/role')
-const batchRoute = require('./routes/batch')
-const subjectRoute = require('./routes/subject')
-const feedbacktypeRoute = require('./routes/feedbacktype')
-const feedbackmoduletypeRoute = require('./routes/feedbackmoduletype')
-const userRoute = require('./routes/student')
-const addfeedbackRoute = require('./routes/addfeedback')
-
-
-
-
-// use routes
-
-app.use('/admin', adminRoute)
-app.use('/course',courseRoute)
-app.use('/role',roleRoute)
-app.use('/batch',batchRoute)
-app.use('/subject',subjectRoute)
-app.use('/feedbacktype',feedbacktypeRoute)
-app.use('/feedbackmoduletype',feedbackmoduletypeRoute)
-app.use('/student',userRoute)
-app.use('/addfeedback',addfeedbackRoute)
+// Only include this if the file exists
+// const facultyfeedbackpdfRouter = require('./routes/facultyfeedbackpdf');
+const studentRouter = require('./routes/student');
 
 
 
-
-
-
-// default route
-app.get('/', (req, res) => {
-  res.send('API is running...')
-})
-
-
-app.listen(3000,'0.0.0.0',() =>{
-  console.log('Server Running on Port 3000')
-})
-
-
-
+// -------------------- Start Server --------------------
+app.listen(4000, '0.0.0.0', () => {
+    console.log('Server started on port 4000');
+});
