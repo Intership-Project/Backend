@@ -3,6 +3,7 @@ const router = express.Router()
 const db = require('../db')
 const utils = require('../utils')
 const upload = require('../middlewares/upload');
+const multer = require('multer');
 
 
 
@@ -108,6 +109,32 @@ router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
       return res.send(utils.createError("All required fields and PDF must be provided"));
     }
 
+ // Check if Admin already added feedback for this faculty
+    const [adminExisting] = await db.execute(
+      `SELECT * FROM addfeedback
+   WHERE faculty_id=? AND subject_id=? AND batch_id <=> ?
+   AND feedbackmoduletype_id=? AND feedbacktype_id=? 
+   AND added_by_role='Admin' AND added_by_id IS NULL`,
+      [faculty_id, subject_id, batch_id || null, feedbackmoduletype_id, feedbacktype_id]
+    );
+
+    if (adminExisting.length > 0) {
+      return res.send(utils.createError("Admin has already added feedback for this faculty"));
+    }
+
+
+    // Check if this CC already added feedback
+    const [ccExisting] = await db.execute(
+      `SELECT * FROM addfeedback
+       WHERE faculty_id=? AND subject_id=? AND batch_id <=> ? 
+       AND feedbackmoduletype_id=? AND feedbacktype_id=? 
+       AND added_by_role='CC' AND added_by_id=?`,
+      [faculty_id, subject_id, batch_id || null, feedbackmoduletype_id, feedbacktype_id, cc_id]
+    );
+
+    if (ccExisting.length > 0) {
+      return res.send(utils.createError("You have already added feedback for this faculty/subject/batch."));
+    }
 
 
 
@@ -126,13 +153,13 @@ router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
 
 
 
-      // Lab Mentor → must have batch
+    // Lab Mentor → must have batch
     if (facultyRoleId === 1 && !batch_id) {
       return res.send(utils.createError("Batch ID is required for Lab Mentor feedback"));
     }
 
 
-     // Trainer → ignore batch
+    // Trainer → ignore batch
     let finalBatchId = null;
     if (facultyRoleId === 1) {
       finalBatchId = batch_id; // Lab Mentor gets batch
@@ -141,9 +168,9 @@ router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
     // Insert into addfeedback
     const [result] = await db.execute(
       `INSERT INTO addfeedback 
-        (course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [cc_course_id, finalBatchId, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, req.file.filename]
+        (course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file,added_by_role, added_by_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'CC', ?)`,
+      [cc_course_id, finalBatchId, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, req.file.filename, cc_id]
     );
 
     res.send(utils.createSuccess({
@@ -155,7 +182,9 @@ router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
       feedbackmoduletype_id,
       feedbacktype_id,
       date,
-      pdf_file: req.file.filename
+      pdf_file: req.file.filename,
+      added_by_role: "CC",
+      added_by_id: cc_id
     }));
 
   } catch (ex) {
