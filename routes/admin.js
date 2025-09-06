@@ -46,34 +46,35 @@ router.post('/login', async (req, res) => {
   if (!email || !password) {
     return res.send(utils.createError('Email and password are required'))
   }
+ try {
+    // Step 1: Check if email exists
+    const [emailRows] = await db.execute(
+      `SELECT id, username, email, password FROM Admin WHERE email = ?`,
+      [email]
+    )
 
-  try {
-    const encryptedPassword = String(cryptoJs.SHA256(password))
-
-
-    // query admin by email and password
-    const statement = `SELECT id, username, email FROM Admin WHERE email = ? AND password = ?`
-    const [rows] = await db.execute(statement, [email, encryptedPassword])
-
-
-    if (rows.length === 0) {
-      return res.send(utils.createError('Invalid email or password'))
+    if (emailRows.length === 0) {
+      return res.send(utils.createError('Invalid email'))
     }
 
-    const admin = rows[0]
+    const admin = emailRows[0]
 
-    // create JWT token
+    // Step 2: Encrypt and check password
+    const encryptedPassword = String(cryptoJs.SHA256(password))
+    if (admin.password !== encryptedPassword) {
+      return res.send(utils.createError('Invalid password'))
+    }
+
+    // Step 3: Create JWT token
     const token = jwt.sign(
       {
         id: admin.id,
         username: admin.username,
         email: admin.email,
-        usertype: 'Admin'
+        usertype: 'Admin',
       },
       config.secret,
-
-      { expiresIn: '1d' } // optional expiration
-
+      { expiresIn: '1d' }
     )
 
     res.send(
@@ -82,7 +83,7 @@ router.post('/login', async (req, res) => {
         adminId: admin.id,
         username: admin.username,
         email: admin.email,
-        usertype: 'Admin'
+        usertype: 'Admin',
       })
     )
   } catch (ex) {

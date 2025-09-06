@@ -15,29 +15,39 @@ const router = express.Router();
 
 // REGISTER Faculty with Role
 router.post('/register', async (req, res) => {
-    const { facultyname, email, password, role_id } = req.body
+    const { facultyname, email, password, role_id, course_id  } = req.body;
 
 
+try {
+    // validation
+    if (!facultyname || !email || !password || !role_id) {
+      return res.send(utils.createError("Faculty name, email, password and role are required"));
+    }
 
-    try {
-        const encryptedPassword = String(cryptoJs.SHA256(password))
+    //  if role is Course Coordinator => course_id must be provided
+    if (role_id == 3) { // Course Coordinator
+      if (!course_id) {
+        return res.send(utils.createError("Course selection required for Course Coordinator"));
+      }
+    }
 
+    // encrypt password
+    const encryptedPassword = String(cryptoJs.SHA256(password));
 
-        // Step 1: Insert into Faculty table with role_id
-        const statement = `
-      INSERT INTO Faculty (facultyname, email, password, role_id)
-      VALUES (?, ?, ?, ?)
-    `
-
+    // Insert into Faculty table
+    const statement = `
+      INSERT INTO Faculty (facultyname, email, password, role_id, course_id)
+      VALUES (?, ?, ?, ?, ?)
+    `;
 
         const [result] = await db.execute(statement, [
 
             facultyname,
             email,
             encryptedPassword,
-            role_id
-
-        ])
+            role_id,
+           role_id == 3 ? course_id : null   // CC => must send course_id, others => NULL
+        ]);
 
 
         res.send(
@@ -46,7 +56,8 @@ router.post('/register', async (req, res) => {
                 facultyId: result.insertId,
                 facultyname,
                 email,
-                role_id
+                role_id,
+                course_id: role_id == 3 ? course_id : null
             })
 
         )
@@ -59,23 +70,18 @@ router.post('/register', async (req, res) => {
 
 
 
-
 // Faculty Login
-
 router.post('/login', async (req, res) => {
-    const { email, password, course_id } = req.body;
+    const { email, password } = req.body;
 
     try {
         if (!email || !password) {
             return res.send(utils.createError('Email and password are required'));
         }
 
-        
-        
-
-        // Check in Faculty 
+        // Check in Faculty table
         const [facultyRows] = await db.execute(
-            `SELECT f.faculty_id, f.facultyname, f.email,f.password, f.role_id, r.rolename
+            `SELECT f.faculty_id, f.facultyname, f.email, f.password, f.role_id, f.course_id, r.rolename
              FROM faculty f
              JOIN role r ON f.role_id = r.role_id
              WHERE f.email = ?`,
@@ -88,48 +94,18 @@ router.post('/login', async (req, res) => {
 
         const faculty = facultyRows[0];
 
-
-        //  Verify password
+        // Verify password
         const encryptedPassword = cryptoJs.SHA256(password).toString();
         if (faculty.password !== encryptedPassword) {
-            return res.send(utils.createError('Invalid password')); 
+            return res.send(utils.createError('Invalid password'));
         }
 
-
-
-        // If role is Course Coordinator, course_id must be provided
+        // If role is Course Coordinator, ensure course is already assigned
         if (faculty.rolename === 'Course Coordinator') {
-            if (!course_id) {
+            if (!faculty.course_id) {
                 return res.send(utils.createError('Course selection required for Course Coordinator'));
             }
-
-            // Verify course exists
-            const [courseRows] = await db.execute(
-                ` SELECT course_id, coursename FROM course WHERE course_id = ?`,
-                [course_id]
-            );
-
-            if (courseRows.length === 0) {
-                return res.send(utils.createError('Invalid course selected'));
-            }
-
-             await db.execute(
-                  `UPDATE faculty SET course_id = ? WHERE faculty_id = ?`,
-                    [course_id, faculty.faculty_id]
-    );
-
-              faculty.course_id = course_id;
-
         }
-
-
-
-         // Determine role for JWT consistently
-    let roleForJWT = faculty.rolename;
-    if (faculty.rolename === 'Trainer' || faculty.rolename === 'Lab Mentor') {
-      roleForJWT = faculty.rolename;
-    }
-
 
         // Generate JWT token
         const token = jwt.sign(
@@ -137,7 +113,7 @@ router.post('/login', async (req, res) => {
                 faculty_id: faculty.faculty_id,
                 username: faculty.facultyname,
                 email: faculty.email,
-                rolename: roleForJWT,
+                rolename: faculty.rolename,
                 course_id: faculty.course_id || null
             },
             config.secret,
@@ -150,7 +126,7 @@ router.post('/login', async (req, res) => {
             faculty_id: faculty.faculty_id,
             username: faculty.facultyname,
             email: faculty.email,
-            rolename: roleForJWT,
+            rolename: faculty.rolename,
             course_id: faculty.course_id || null
         }));
 
