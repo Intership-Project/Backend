@@ -9,18 +9,18 @@ const config = require('../config')
 
 // student Registers
 router.post('/register', async (request, response) => {
-  const { studentname, email, password, course_id,batch_id} = request.body;
+  const { studentname, email, password, course_id, batch_id } = request.body;
 
 
-  // ✅ Validation
+  //Validation
   if (!studentname || !email || !password || !course_id || !batch_id) {
     return response.status(400).json({
       status: 'error',
       message: 'Missing required fields',
-      received: request.body // helpful for debugging
+      received: request.body
     });
 
-    
+
   }
   try {
     //  Encrypt password using SHA256 before saving into DB
@@ -58,7 +58,7 @@ router.post('/register', async (request, response) => {
 
 
 
-//  Student Login API 
+//Student Login API 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -66,10 +66,10 @@ router.post('/login', async (req, res) => {
     if (!email || !password) {
       return res.send(utils.createError('Email and password are required'))
     }
-   
-   
+
+
     // Check if student exists by email
-       const [studentRows] = await db.execute(
+    const [studentRows] = await db.execute(
       `SELECT 
           s.student_id, 
           s.studentname, 
@@ -95,7 +95,7 @@ router.post('/login', async (req, res) => {
     if (student.password !== encryptedPassword) {
       return res.send(utils.createError('Invalid password'))
     }
-      
+
     // Generate JWT token
     const token = jwt.sign(
       {
@@ -111,7 +111,7 @@ router.post('/login', async (req, res) => {
     )
 
 
-     // Send success response
+    // Send success response
     res.send(
       utils.createSuccess({
         token,
@@ -130,7 +130,8 @@ router.post('/login', async (req, res) => {
 
 
 
-//  Forgot Password (Generate Token) 
+
+//Forgot Password (Generate Token) 
 router.post('/forgotpassword', async (req, res) => {
   const { email } = req.body
 
@@ -163,7 +164,9 @@ router.post('/forgotpassword', async (req, res) => {
 })
 
 
-// Reset Password
+
+
+//Reset Password
 router.post('/resetpassword', async (req, res) => {
   const { resetToken, newPassword } = req.body
 
@@ -189,7 +192,7 @@ router.post('/resetpassword', async (req, res) => {
 
 
 
- //  Update student details by student_id
+//Update student details by student_id
 router.put('/update/:id', async (req, res) => {
   const student_id = req.params.id
   const { studentname, email, password, course_id, batch_id } = req.body
@@ -198,7 +201,7 @@ router.put('/update/:id', async (req, res) => {
     let encryptedpassword = null
     if (password) {
       //  Encrypt password if provided
-   encryptedpassword = cryptoJs.SHA256(password).toString()
+      encryptedpassword = cryptoJs.SHA256(password).toString()
     }
 
     // SQL Update query (conditionally includes password if provided)
@@ -225,14 +228,14 @@ router.put('/update/:id', async (req, res) => {
 
     res.json({ message: 'Student updated successfully' })
   } catch (ex) {
-  
+
     res.status(500).json({ error: 'Internal Server Error' })
   }
 })
 
 
 
-//  Delete student by student_id
+//Delete student by student_id
 router.delete("/delete/:id", (req, res) => {
   const student_id = req.params.id;
 
@@ -253,7 +256,7 @@ router.delete("/delete/:id", (req, res) => {
 
 
 
-//  Fetch all students from Student table
+//Fetch all students from Student table
 router.get('/getall', async (request, response) => {
   try {
     const statement = `
@@ -269,10 +272,12 @@ router.get('/getall', async (request, response) => {
 })
 
 
-//  Get student Profile 
+
+
+//Get student Profile 
 router.get('/profile', async (req, res) => {
   try {
-    const student_id = req.data.student_id   
+    const student_id = req.data.student_id
 
     const statement = `
       SELECT student_id, studentname, email, course_id,batch_id
@@ -294,17 +299,18 @@ router.get('/profile', async (req, res) => {
 
 
 
+
 // Change Password API 
 router.put('/changepassword', async (req, res) => {
   try {
-    const student_id = req.data.student_id   
+    const student_id = req.data.student_id
     const { oldPassword, newPassword } = req.body
 
     if (!oldPassword || !newPassword) {
       return res.status(400).json(utils.createError('Old and new password is wrong'))
     }
 
-    
+
     const encryptedOldPassword = cryptoJs.SHA256(oldPassword).toString()
 
     const [users] = await db.execute(
@@ -332,7 +338,10 @@ router.put('/changepassword', async (req, res) => {
 })
 
 
-//  Delete Student
+
+
+
+//Delete Student
 router.delete("/:id", (req, res) => {
   const { id } = req.params;
   db.query("DELETE FROM student WHERE student_id=?", [id], (err, result) => {
@@ -341,7 +350,10 @@ router.delete("/:id", (req, res) => {
   });
 });
 
-//  Update Student
+
+
+
+//Update Student
 router.put("/:id", (req, res) => {
   const { id } = req.params;
   const { name, email, course_id } = req.body;
@@ -351,6 +363,7 @@ router.put("/:id", (req, res) => {
     res.json({ message: "Student updated successfully" });
   });
 });
+
 
 
 

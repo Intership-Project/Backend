@@ -4,9 +4,8 @@ const db = require('../db')
 const utils = require('../utils')
 
 
+
 // CREATE FeedbackQuestion
-
-
 router.post('/', async (req, res) => {
   const { questiontext, feedbacktype_id } = req.body
   try {
@@ -32,8 +31,10 @@ router.post('/', async (req, res) => {
   }
 })
 
-// GET All FeedbackQuestions
 
+
+
+// GET All FeedbackQuestions
 router.get('/', async (req, res) => {
 
     try {
@@ -50,8 +51,9 @@ router.get('/', async (req, res) => {
   })
 
 
-// GET FeedbackQuestion by ID
 
+
+// GET FeedbackQuestion by ID
 router.get('/:feedbackquestion_id', async (req, res) => {
 
     const { feedbackquestion_id } = req.params
@@ -75,8 +77,8 @@ router.get('/:feedbackquestion_id', async (req, res) => {
   })
 
 
-// UPDATE FeedbackQuestion
 
+// UPDATE FeedbackQuestion
 router.put('/:feedbackquestion_id', async (req, res) => {
 
     const { feedbackquestion_id } = req.params
@@ -106,8 +108,10 @@ router.put('/:feedbackquestion_id', async (req, res) => {
       res.send(utils.createError(ex))
     }
   })
-  // 📖 Get Questions by FeedbackType (Theory / Lab)
-  
+
+
+
+  //Get Questions by FeedbackType (Theory / Lab)
 router.get('/feedbacktype/:feedbacktype_id', async (req, res) => {
   const { feedbacktype_id } = req.params
   try {

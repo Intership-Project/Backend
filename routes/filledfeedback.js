@@ -6,7 +6,8 @@ const config = require('../config')
 const PDFDocument = require('pdfkit')
 
 
-//  POST FilledFeedback with responses
+
+//  POST FilledFeedback 
 router.post('/', async (req, res) => {
   const { student_id, schedulefeedback_id, comments, questionResponses } = req.body
   let connection
@@ -83,6 +84,55 @@ router.post('/', async (req, res) => {
 
 
 
+// GET /filledfeedback/stats/:course_id
+router.get('/stats/:course_id', async (req, res) => {
+  const { course_id } = req.params;
+  try {
+    const [[stats]] = await db.execute(`
+      SELECT 
+        COUNT(*) AS totalFeedback,
+        SUM(CASE WHEN rating IS NULL OR rating = 0 THEN 1 ELSE 0 END) AS pendingReview,
+        SUM(CASE WHEN rating > 0 THEN 1 ELSE 0 END) AS facultyFeedbackAdded
+      FROM FilledFeedback AS FF
+      INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
+      WHERE SF.course_id = ?
+    `, [course_id]);
+
+    res.send(utils.createSuccess(stats));
+  } catch (err) {
+    res.send(utils.createError(err.message || err));
+  }
+});
+
+
+
+
+// GET /filledfeedback/recent/:course_id
+router.get('/recent/:course_id', async (req, res) => {
+  const { course_id } = req.params;
+  try {
+    const [rows] = await db.execute(`
+      SELECT FF.filledfeedbacks_id, S.studentname, Sub.subjectname, F.facultyname,
+             FF.rating, FF.comments, SF.StartDate, SF.EndDate
+      FROM FilledFeedback AS FF
+      INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
+      INNER JOIN Student AS S ON FF.student_id = S.student_id
+      INNER JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
+      INNER JOIN Subject AS Sub ON SF.subject_id = Sub.subject_id
+      WHERE SF.course_id = ?
+      ORDER BY FF.filledfeedbacks_id DESC
+      LIMIT 5
+    `, [course_id]);
+
+    res.send(utils.createSuccess(rows));
+  } catch (err) {
+    res.send(utils.createError(err.message || err));
+  }
+});
+
+
+
+
 // GET all FilledFeedback (with course, subject, faculty, student)
 router.get('/', async (req, res) => {
   try {
@@ -145,6 +195,9 @@ router.get('/:filledfeedbacks_id', async (req, res) => {
   }
 })
 
+
+
+
 // DELETE FilledFeedback and its FeedbackResponses
 router.delete('/:filledfeedbacks_id', async (req, res) => {
   const { filledfeedbacks_id } = req.params
@@ -174,13 +227,15 @@ router.delete('/:filledfeedbacks_id', async (req, res) => {
   }
 })
 
-  //GET Responses for a specific FilledFeedback
 
 
-  router.get('/:filledfeedbacks_id/responses', async (req, res) => {
-    const { filledfeedbacks_id } = req.params
-    try {
-      const statement = `
+
+
+//GET Responses for a specific FilledFeedback
+router.get('/:filledfeedbacks_id/responses', async (req, res) => {
+  const { filledfeedbacks_id } = req.params
+  try {
+    const statement = `
         SELECT
           FQ.questiontext,
           FR.response_rating
@@ -188,19 +243,20 @@ router.delete('/:filledfeedbacks_id', async (req, res) => {
         INNER JOIN FeedbackQuestions AS FQ ON FR.feedbackquestion_id = FQ.feedbackquestion_id
         WHERE FR.filledfeedbacks_id = ?
       `
-      const [rows] = await db.execute(statement, [filledfeedbacks_id])
-      if (rows.length === 0) {
-        res.send(utils.createError('No responses found'))
-      } else {
-        res.send(utils.createSuccess(rows))
-      }
-    } catch (ex) {
-      res.send(utils.createError(ex))
+    const [rows] = await db.execute(statement, [filledfeedbacks_id])
+    if (rows.length === 0) {
+      res.send(utils.createError('No responses found'))
+    } else {
+      res.send(utils.createSuccess(rows))
     }
-  })
-     //GET Feedback Summary by Faculty & Course
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
 
 
+
+//GET Feedback Summary by Faculty & Course
 router.get('/summary/by-faculty-course', async (req, res) => {
   const { faculty_id, course_id } = req.query
   if (!faculty_id || !course_id) {
@@ -228,7 +284,6 @@ router.get('/summary/by-faculty-course', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
-
 
 
 
@@ -313,6 +368,7 @@ router.get('/download/faculty/:faculty_id', async (req, res) => {
     res.status(500).send(' Error generating faculty feedback PDF')
   }
 })
+
 
 
 module.exports = router

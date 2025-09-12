@@ -15,10 +15,10 @@ const router = express.Router();
 
 // REGISTER Faculty with Role
 router.post('/register', async (req, res) => {
-    const { facultyname, email, password, role_id, course_id  } = req.body;
+  const { facultyname, email, password, role_id, course_id } = req.body;
 
 
-try {
+  try {
     // validation
     if (!facultyname || !email || !password || !role_id) {
       return res.send(utils.createError("Faculty name, email, password and role are required"));
@@ -40,228 +40,267 @@ try {
       VALUES (?, ?, ?, ?, ?)
     `;
 
-        const [result] = await db.execute(statement, [
+    const [result] = await db.execute(statement, [
 
-            facultyname,
-            email,
-            encryptedPassword,
-            role_id,
-           role_id == 3 ? course_id : null   // CC => must send course_id, others => NULL
-        ]);
+      facultyname,
+      email,
+      encryptedPassword,
+      role_id,
+      role_id == 3 ? course_id : null   // CC => must send course_id, others => NULL
+    ]);
 
 
-        res.send(
+    res.send(
 
-            utils.createSuccess({
-                facultyId: result.insertId,
-                facultyname,
-                email,
-                role_id,
-                course_id: role_id == 3 ? course_id : null
-            })
+      utils.createSuccess({
+        facultyId: result.insertId,
+        facultyname,
+        email,
+        role_id,
+        course_id: role_id == 3 ? course_id : null
+      })
 
-        )
+    )
 
-    } catch (ex) {
+  } catch (ex) {
 
-        res.send(utils.createError(ex))
-    }
+    res.send(utils.createError(ex))
+  }
 })
 
 
 
 // Faculty Login
 router.post('/login', async (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    try {
-        if (!email || !password) {
-            return res.send(utils.createError('Email and password are required'));
-        }
+  try {
+    if (!email || !password) {
+      return res.send(utils.createError('Email and password are required'));
+    }
 
-        // Check in Faculty table
-        const [facultyRows] = await db.execute(
-            `SELECT f.faculty_id, f.facultyname, f.email, f.password, f.role_id, f.course_id, r.rolename
+    // Check in Faculty table
+    const [facultyRows] = await db.execute(
+      `SELECT f.faculty_id, f.facultyname, f.email, f.password, f.role_id, f.course_id, r.rolename
              FROM faculty f
              JOIN role r ON f.role_id = r.role_id
              WHERE f.email = ?`,
-            [email]
-        );
+      [email]
+    );
 
-        if (facultyRows.length === 0) {
-            return res.send(utils.createError('Invalid email'));
-        }
-
-        const faculty = facultyRows[0];
-
-        // Verify password
-        const encryptedPassword = cryptoJs.SHA256(password).toString();
-        if (faculty.password !== encryptedPassword) {
-            return res.send(utils.createError('Invalid password'));
-        }
-
-        // If role is Course Coordinator, ensure course is already assigned
-        if (faculty.rolename === 'Course Coordinator') {
-            if (!faculty.course_id) {
-                return res.send(utils.createError('Course selection required for Course Coordinator'));
-            }
-        }
-
-        // Generate JWT token
-        const token = jwt.sign(
-            {
-                faculty_id: faculty.faculty_id,
-                username: faculty.facultyname,
-                email: faculty.email,
-                rolename: faculty.rolename,
-                course_id: faculty.course_id || null
-            },
-            config.secret,
-            { expiresIn: '1d' }
-        );
-
-        // Send success response
-        res.send(utils.createSuccess({
-            token,
-            faculty_id: faculty.faculty_id,
-            username: faculty.facultyname,
-            email: faculty.email,
-            rolename: faculty.rolename,
-            course_id: faculty.course_id || null
-        }));
-
-    } catch (ex) {
-        console.error('Faculty Login Error:', ex);
-        res.send(utils.createError('Something went wrong during faculty login.'));
+    if (facultyRows.length === 0) {
+      return res.send(utils.createError('Invalid email'));
     }
+
+    const faculty = facultyRows[0];
+
+    // Verify password
+    const encryptedPassword = cryptoJs.SHA256(password).toString();
+    if (faculty.password !== encryptedPassword) {
+      return res.send(utils.createError('Invalid password'));
+    }
+
+    // If role is Course Coordinator, ensure course is already assigned
+    if (faculty.rolename === 'Course Coordinator') {
+      if (!faculty.course_id) {
+        return res.send(utils.createError('Course selection required for Course Coordinator'));
+      }
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        faculty_id: faculty.faculty_id,
+        username: faculty.facultyname,
+        email: faculty.email,
+        rolename: faculty.rolename,
+        course_id: faculty.course_id || null
+      },
+      config.secret,
+      { expiresIn: '1d' }
+    );
+
+    // Send success response
+    res.send(utils.createSuccess({
+      token,
+      faculty_id: faculty.faculty_id,
+      username: faculty.facultyname,
+      email: faculty.email,
+      rolename: faculty.rolename,
+      course_id: faculty.course_id || null
+    }));
+
+  } catch (ex) {
+    console.error('Faculty Login Error:', ex);
+    res.send(utils.createError('Something went wrong during faculty login.'));
+  }
 });
 
 
 
+// GET only Trainers and Lab Mentors
+router.get('/trainers-labs', async (req, res) => {
+  try {
+    const statement = `
+  SELECT faculty_id, facultyname, role_id
+      FROM faculty
+      WHERE role_id IN (1, 2)  -- 1 = Lab Mentor, 2 = Trainer
+`;
 
-// GET all Faculties (GET)
+    const [rows] = await db.execute(statement);
 
-router.get('/',verifyToken, async (req, res) => {
-    try {
+    res.send(utils.createSuccess(rows));
+  } catch (err) {
+    res.send(utils.createError(err));
+  }
+});
 
-        if (req.data.usertype !== 'Admin') {
-      return res.status(403).send(utils.createError('Only Admin can access this API'));
+
+router.get('/:faculty_id/batches', async (req, res) => {
+  const { faculty_id } = req.params;
+  try {
+    const [rows] = await db.execute(
+      `SELECT role_id, course_id FROM faculty WHERE faculty_id = ?`,
+      [faculty_id]
+    );
+
+    if (rows.length === 0) {
+      return res.send(utils.createError("Faculty not found"));
     }
 
+    const faculty = rows[0];
 
-        const [rows] = await db.execute(
-          
-          'SELECT f.faculty_id, f.facultyname, f.email, r.rolename FROM Faculty f JOIN Role r ON f.role_id = r.role_id'
-        
-        );
-        res.send(utils.createSuccess(rows));
-    } catch (ex) {
-        res.send(utils.createError(ex));
+    // Lab Mentor → fetch batches
+    let batches = [];
+    if (faculty.role_id === 1) {
+      const [batchRows] = await db.execute(
+        `SELECT * FROM batch WHERE faculty_id = ?`,
+        [faculty_id]
+      );
+      batches = batchRows;
     }
-})
+
+    res.send(utils.createSuccess({
+      role_id: faculty.role_id,
+      course_id: faculty.course_id,
+      batches
+    }));
+  } catch (err) {
+    res.send(utils.createError(err.message || err));
+  }
+});
+
+
+// GET /faculty/all
+router.get("/all", async (req, res) => {
+  try {
+    const statement = `SELECT faculty_id, facultyname, role_id FROM faculty`;
+    const [rows] = await db.execute(statement);
+    res.send({ status: "success", data: rows });
+  } catch (err) {
+    res.send({ status: "error", error: err.message });
+  }
+});
+
 
 
 // GET single Faculty by ID (GET)
-
 router.get('/:faculty_id', async (req, res) => {
 
-    try {
+  try {
 
-        const facultyId = req.params.faculty_id;
-        const [rows] = await db.execute
-            (
-                'SELECT f.faculty_id, f.facultyname, f.email, r.rolename FROM faculty f JOIN role r ON f.role_id = r.role_id WHERE f.faculty_id = ?',
-                [facultyId]
-            );
+    const facultyId = req.params.faculty_id;
+    const [rows] = await db.execute
+      (
+        'SELECT f.faculty_id, f.facultyname, f.email, r.rolename FROM faculty f JOIN role r ON f.role_id = r.role_id WHERE f.faculty_id = ?',
+        [facultyId]
+      );
 
-        if (rows.length === 0) {
-            return res.send(utils.createError('Faculty not found'));
-        }
-        res.send(utils.createSuccess(rows[0]));
-    } catch (err) {
-        console.error("Error in /faculty/:id", err);
-        res.send(utils.createError("Something went wrong"));
+    if (rows.length === 0) {
+      return res.send(utils.createError('Faculty not found'));
     }
+    res.send(utils.createSuccess(rows[0]));
+  } catch (err) {
+    console.error("Error in /faculty/:id", err);
+    res.send(utils.createError("Something went wrong"));
+  }
 })
 
 
+
+
 // UPDATE Faculty (PUT)
-
-
 router.put('/profile', async (req, res) => {
-    
-    const { facultyname, email } = req.body;
-    const faculty_id = req.data.faculty_id; 
 
-    try {
-        
-        
+  const { facultyname, email } = req.body;
+  const faculty_id = req.data.faculty_id;
 
-        const statement = `
+  try {
+
+    const statement = `
             UPDATE faculty
             SET facultyname = ?, email = ?
             WHERE faculty_id = ?
         `;
 
-        const params =  [facultyname, email, faculty_id];
+    const params = [facultyname, email, faculty_id];
 
-        
-        const [result] = await db.execute(statement, params);
+    const [result] = await db.execute(statement, params);
 
-        res.send(utils.createSuccess({
-            updated: result.affectedRows,
-            facultyId: faculty_id
-        }));
-    } catch (ex) {
-         res.send(utils.createError(ex.message || ex));
-    }
+    res.send(utils.createSuccess({
+      updated: result.affectedRows,
+      facultyId: faculty_id
+    }));
+  } catch (ex) {
+    res.send(utils.createError(ex.message || ex));
+  }
 })
 
 
 // DELETE Faculty (DELETE)
 
-router.delete('/:faculty_id',verifyToken, async (req, res) => {
-    const { faculty_id } = req.params;
-    try {
+router.delete('/:faculty_id', verifyToken, async (req, res) => {
+  const { faculty_id } = req.params;
+  try {
 
-        // Only Admin can delete
-        if (req.data.usertype !== 'Admin') {
-            return res.status(403).send(utils.createError('Only Admin can delete faculty'));
-        }
-
-
-        const [result] = await db.execute('DELETE FROM Faculty WHERE faculty_id = ?', [faculty_id]);
-        res.send(utils.createSuccess({
-            deleted: result.affectedRows,
-            facultyId: faculty_id
-        }));
-    } catch (ex) {
-        res.send(utils.createError(ex));
+    // Only Admin can delete
+    if (req.data.usertype !== 'Admin') {
+      return res.status(403).send(utils.createError('Only Admin can delete faculty'));
     }
+
+
+    const [result] = await db.execute('DELETE FROM Faculty WHERE faculty_id = ?', [faculty_id]);
+    res.send(utils.createSuccess({
+      deleted: result.affectedRows,
+      facultyId: faculty_id
+    }));
+  } catch (ex) {
+    res.send(utils.createError(ex));
+  }
 })
 
 
 // GET /faculty/profile/:faculty_id
 router.get('/profile/:faculty_id', async (req, res) => {
-    const facultyId = req.params.faculty_id;
+  const facultyId = req.params.faculty_id;
 
-    try {
-        const statement = `
+  try {
+    const statement = `
             SELECT faculty_id, facultyname, email, role_id
             FROM faculty
             WHERE faculty_id = ?
         `;
 
-        const [rows] = await db.execute(statement, [facultyId]);
+    const [rows] = await db.execute(statement, [facultyId]);
 
-        if (rows.length === 0) {
-            res.send(utils.createError('Faculty not found'));
-        } else {
-            res.send(utils.createSuccess(rows[0]));  // single profile
-        }
-    } catch (err) {
-        res.send(utils.createError(err));
+    if (rows.length === 0) {
+      res.send(utils.createError('Faculty not found'));
+    } else {
+      res.send(utils.createSuccess(rows[0]));  // single profile
     }
+  } catch (err) {
+    res.send(utils.createError(err));
+  }
 });
 
 
@@ -269,51 +308,50 @@ router.get('/profile/:faculty_id', async (req, res) => {
 
 //FORGOT PASSWORD (generate token) 
 router.post('/forgotpassword', async (req, res) => {
-    const { email } = req.body;
+  const { email } = req.body;
 
-    try {
+  try {
 
 
-        const [rows] = await db.execute(`SELECT faculty_id, email FROM faculty WHERE email = ?`, [email])
+    const [rows] = await db.execute(`SELECT faculty_id, email FROM faculty WHERE email = ?`, [email])
 
-        if (rows.length === 0) {
-            return res.send(utils.createError('Faculty not found with this email'))
-        }
-
-        const faculty = rows[0]
-        // Generate reset token (valid for 15 min)
-        const resetToken = jwt.sign({ faculty_id: faculty.faculty_id, email: faculty.email }, config.secret, { expiresIn: '20m' })
-
-        // Normally we email the resetToken, but for now we’ll just return it in response
-        res.send(utils.createSuccess({ resetToken }))
-    } catch (ex) {
-        console.error("Forgot Password Error:", ex.message);
-        res.send(utils.createError("Something went wrong in forgot password"));
+    if (rows.length === 0) {
+      return res.send(utils.createError('Faculty not found with this email'))
     }
+
+    const faculty = rows[0]
+    // Generate reset token (valid for 15 min)
+    const resetToken = jwt.sign({ faculty_id: faculty.faculty_id, email: faculty.email }, config.secret, { expiresIn: '20m' })
+
+    // Normally we email the resetToken, but for now we’ll just return it in response
+    res.send(utils.createSuccess({ resetToken }))
+  } catch (ex) {
+    console.error("Forgot Password Error:", ex.message);
+    res.send(utils.createError("Something went wrong in forgot password"));
+  }
 })
 
 
 // RESET PASSWORD 
 router.post('/resetpassword', async (req, res) => {
-    const { resetToken, newPassword } = req.body
+  const { resetToken, newPassword } = req.body
 
-    try {
-        // Verify token
-        const decoded = jwt.verify(resetToken, config.secret)
+  try {
+    // Verify token
+    const decoded = jwt.verify(resetToken, config.secret)
 
-        const encryptedPassword = cryptoJs.SHA256(newPassword).toString();
+    const encryptedPassword = cryptoJs.SHA256(newPassword).toString();
 
-        await db.execute(
-            `UPDATE faculty SET password = ? WHERE faculty_id = ?`,
-            [encryptedPassword, decoded.faculty_id]
-        )
+    await db.execute(
+      `UPDATE faculty SET password = ? WHERE faculty_id = ?`,
+      [encryptedPassword, decoded.faculty_id]
+    )
 
-        res.send(utils.createSuccess('Password reset successfully'))
-    } catch (ex) {
-        res.send(utils.createError('Invalid or expired reset token'))
-    }
+    res.send(utils.createSuccess('Password reset successfully'))
+  } catch (ex) {
+    res.send(utils.createError('Invalid or expired reset token'))
+  }
 })
-
 
 
 // FACULTY CHANGE PASSWORD
@@ -321,14 +359,19 @@ router.put('/changepassword', verifyToken, async (req, res) => {
   const { oldPassword, newPassword } = req.body;
   const { faculty_id, rolename } = req.data; // from JWT payload
 
-  // Only Trainer or Lab Mentor can change password
-  if (rolename !== "Trainer" && rolename !== "Lab Mentor") {
-    return res.status(403).send(utils.createError("Only Trainer or Lab Mentor can change password"));
+  // Only Trainer, Lab Mentor, or CC can change password
+  if (rolename !== "Trainer" && rolename !== "Lab Mentor" && rolename !== "Course Coordinator") {
+    return res.status(403).send(
+      utils.createError("Only Trainer, Lab Mentor or CC can change password")
+    );
   }
 
   try {
     // Verify faculty exists
-    const [rows] = await db.execute(`SELECT password FROM faculty WHERE faculty_id = ?`, [faculty_id]);
+    const [rows] = await db.execute(
+      `SELECT password FROM faculty WHERE faculty_id = ?`,
+      [faculty_id]
+    );
     if (rows.length === 0) {
       return res.send(utils.createError('Faculty not found'));
     }
@@ -341,16 +384,16 @@ router.put('/changepassword', verifyToken, async (req, res) => {
 
     // Update new password
     const newHash = cryptoJs.SHA256(newPassword).toString();
-    await db.execute(`UPDATE faculty SET password = ? WHERE faculty_id = ?`, [newHash, faculty_id]);
+    await db.execute(
+      `UPDATE faculty SET password = ? WHERE faculty_id = ?`,
+      [newHash, faculty_id]
+    );
 
     res.send(utils.createSuccess('Password changed successfully'));
   } catch (ex) {
     res.send(utils.createError("Something went wrong in change-password"));
   }
 });
-
-
-
 
 
 
@@ -414,13 +457,13 @@ router.get('/feedbacks', verifyToken, async (req, res) => {
 router.get('/feedbacks/:id/download', async (req, res) => {
   try {
 
-     console.log("JWT Payload from token:", req.data); 
+    console.log("JWT Payload from token:", req.data);
     const { faculty_id, rolename } = req.data; // from JWT
     const addfeedback_id = req.params.id;
 
 
 
-     // Security: only Trainer / Lab Mentor allowed
+    // Security: only Trainer / Lab Mentor allowed
     if (rolename !== "Trainer" && rolename !== "Lab Mentor") {
       return res.status(403).send(utils.createError("Access denied"));
     }
@@ -432,7 +475,7 @@ router.get('/feedbacks/:id/download', async (req, res) => {
       `SELECT pdf_file 
        FROM addfeedback 
        WHERE addfeedback_id = ?  AND pdf_file IS NOT NULL`,
-      [addfeedback_id]
+      [addfeedback_id, faculty_id]
     );
 
     if (rows.length === 0) {
@@ -446,7 +489,7 @@ router.get('/feedbacks/:id/download', async (req, res) => {
       return res.status(404).send(utils.createError("PDF file not found on server"));
     }
 
-      // Download the file
+    // Download the file
     res.download(filePath, pdfFile, (err) => {
       if (err) {
         console.error("Error while sending file:", err);
@@ -462,112 +505,6 @@ router.get('/feedbacks/:id/download', async (req, res) => {
 
 
 
-
-//filledfeedbackId
-// GET /faculty/:id/download
-router.get('/download/faculty/:faculty_id', async (req, res) => {
-  const facultyId = req.params.id;
-  const user = req.data; // JWT decoded data
-
-  try {
-    // Role check
-    if (user.rolename === "Course Coordinator") {
-      // CC can only access feedback of faculties belonging to their course
-    } else if (user.rolename === "Trainer" || user.rolename === "Lab Mentor") {
-      if (user.faculty_id != facultyId) {
-        return res.status(403).json({ message: "Access denied: You can only download your own feedback" });
-      }
-    } else {
-      return res.status(403).json({ message: "Unauthorized role" });
-    }
-
-    // Fetch all feedbacks for that faculty + only for CC's course
-    let query = `
-      SELECT
-        FF.filledfeedbacks_id,
-        FF.comments,
-        FF.rating,
-        S.studentname,
-        C.coursename,
-        Sub.subjectname,
-        F.facultyname,
-        SF.StartDate,
-        SF.EndDate
-      FROM FilledFeedback AS FF
-      INNER JOIN Student AS S ON FF.student_id = S.student_id
-      INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
-      INNER JOIN Course AS C ON SF.course_id = C.course_id
-      INNER JOIN Subject AS Sub ON SF.subject_id = Sub.subject_id
-      INNER JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
-      WHERE SF.faculty_id = ?
-    `;
-
-    let params = [facultyId];
-
-    // Extra restriction if user is CC
-    if (user.rolename === "Course Coordinator") {
-      query += " AND SF.course_id = ?";
-      params.push(user.course_id);
-    }
-
-    query += " ORDER BY FF.filledfeedbacks_id";
-
-    const [rows] = await db.execute(query, params);
-
-    if (rows.length === 0) {
-      return res.status(404).json({ message: "No feedback found for this faculty" });
-    }
-
-    // Fetch responses for each feedback
-    const feedbackWithResponses = [];
-    for (const fb of rows) {
-      const [responses] = await db.execute(`
-        SELECT FQ.questiontext, FR.response_rating
-        FROM FeedbackResponses FR
-        INNER JOIN FeedbackQuestions FQ ON FR.feedbackquestion_id = FQ.feedbackquestion_id
-        WHERE FR.filledfeedbacks_id = ?
-      `, [fb.filledfeedbacks_id]);
-      feedbackWithResponses.push({ ...fb, responses });
-    }
-
-    // Generate PDF
-    const PDFDocument = require("pdfkit");
-    const doc = new PDFDocument({ margin: 40 });
-
-    res.setHeader("Content-Disposition", `attachment; filename=faculty-${facultyId}-feedbacks.pdf`);
-    res.setHeader("Content-Type", "application/pdf");
-    doc.pipe(res);
-
-    // Title
-    doc.fontSize(20).text(`Feedback Report for ${rows[0].facultyname}`, { align: "center" });
-    doc.moveDown();
-
-    // Each feedback
-    feedbackWithResponses.forEach((fb, index) => {
-      doc.fontSize(14).text(`Feedback #${index + 1}`, { underline: true });
-      doc.moveDown(0.3);
-      doc.text(`Student: ${fb.studentname}`);
-      doc.text(`Course: ${fb.coursename}`);
-      doc.text(`Subject: ${fb.subjectname}`);
-      doc.text(`Period: ${fb.StartDate} - ${fb.EndDate}`);
-      doc.text(`Overall Rating: ${fb.rating}`);
-      if (fb.comments) doc.text(`Comments: ${fb.comments}`);
-      doc.moveDown(0.5);
-
-      fb.responses.forEach((r, i) => {
-        doc.text(`   Q${i + 1}: ${r.questiontext}`);
-        doc.text(`      Response: ${r.response_rating}`);
-      });
-
-      doc.moveDown(1);
-    });
-
-    doc.end();
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error generating PDF" });
-  }
-});
 
 
 module.exports = router

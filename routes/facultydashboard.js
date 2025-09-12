@@ -7,8 +7,6 @@
 // const config = require('../config')
 
 
-
-
 // // GET /feedbackdashboard/chart/:faculty_id
 // router.get('/chart/:faculty_id', async (req, res) => {
 //     const facultyId = req.params.faculty_id;
@@ -35,11 +33,6 @@
 //         res.send(utils.createError(err));
 //     }
 // })
-
-
-
-
-
 
 
 
