@@ -83,12 +83,41 @@ router.post('/', async (req, res) => {
     if (connection) connection.release()
   }
 })
+// // GET all FilledFeedback (with course, subject, faculty, student)
+// router.get('/', async (req, res) => {
+//   try {
+//     const statement = `
+//       SELECT
+//         FF.filledfeedbacks_id,
+//         FF.comments,
+//         FF.rating,
+//         S.studentname,
+//         C.coursename,
+//         Sub.subjectname,
+//         F.facultyname,
+//         SF.StartDate,
+//         SF.EndDate
+//       FROM FilledFeedback AS FF
+//       INNER JOIN Student AS S ON FF.student_id = S.student_id
+//       INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
+//       INNER JOIN Course AS C ON SF.course_id = C.course_id
+//       INNER JOIN Subject AS Sub ON SF.subject_id = Sub.subject_id
+//       INNER JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
+//     `
+//     const [rows] = await db.execute(statement)
+//     res.send(utils.createSuccess(rows))
+//   } catch (ex) {
+//     res.send(utils.createError(ex))
+//   }
+// })
+
 // GET all FilledFeedback (with course, subject, faculty, student)
 router.get('/', async (req, res) => {
   try {
     const statement = `
       SELECT
         FF.filledfeedbacks_id,
+        FF.schedulefeedback_id,   -- Add this line
         FF.comments,
         FF.rating,
         S.studentname,
@@ -110,6 +139,7 @@ router.get('/', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
+
 
 // GET FilledFeedback by ID (with full info)
 router.get('/:filledfeedbacks_id', async (req, res) => {
@@ -233,15 +263,98 @@ router.get('/summary/by-faculty-course', async (req, res) => {
 
 
 
-// Download ALL student filled feedbacks for one faculty
-router.get('/download/faculty/:faculty_id', async (req, res) => {
-  const { faculty_id } = req.params
+// // Download ALL student filled feedbacks for one faculty
+// router.get('/download/faculty/:faculty_id', async (req, res) => {
+//   const { faculty_id } = req.params
+
+//   try {
+//     // 1. Fetch all feedbacks for that faculty
+//     const [rows] = await db.execute(`
+//       SELECT
+//         FF.filledfeedbacks_id,
+//         FF.comments,
+//         FF.rating,
+//         S.studentname,
+//         C.coursename,
+//         Sub.subjectname,
+//         F.facultyname,
+//         SF.StartDate,
+//         SF.EndDate
+//       FROM FilledFeedback AS FF
+//       INNER JOIN Student AS S ON FF.student_id = S.student_id
+//       INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
+//       INNER JOIN Course AS C ON SF.course_id = C.course_id
+//       INNER JOIN Subject AS Sub ON SF.subject_id = Sub.subject_id
+//       INNER JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
+//       WHERE SF.faculty_id = ?
+//       ORDER BY FF.filledfeedbacks_id
+//     `, [faculty_id])
+
+//     if (rows.length === 0) {
+//       return res.status(404).send(' No feedback found for this faculty')
+//     }
+
+//     // 2. Fetch responses for each feedback
+//     const feedbackWithResponses = []
+//     for (const fb of rows) {
+//       const [responses] = await db.execute(`
+//         SELECT FQ.questiontext, FR.response_rating
+//         FROM FeedbackResponses FR
+//         INNER JOIN FeedbackQuestions FQ ON FR.feedbackquestion_id = FQ.feedbackquestion_id
+//         WHERE FR.filledfeedbacks_id = ?
+//       `, [fb.filledfeedbacks_id])
+//       feedbackWithResponses.push({ ...fb, responses })
+//     }
+
+//     // 3. Generate PDF
+//     const PDFDocument = require('pdfkit')
+//     const doc = new PDFDocument({ margin: 40 })
+//     res.setHeader('Content-Disposition', `attachment; filename=faculty-${faculty_id}-feedbacks.pdf`)
+//     res.setHeader('Content-Type', 'application/pdf')
+//     doc.pipe(res)
+
+//     // Title
+//     doc.fontSize(20).text(`Feedback Report for ${rows[0].facultyname}`, { align: 'center' })
+//     doc.moveDown()
+
+//     // Each feedback
+//     feedbackWithResponses.forEach((fb, index) => {
+//       doc.fontSize(14).text(`Feedback #${index + 1}`, { underline: true })
+//       doc.moveDown(0.3)
+//       doc.text(`Student: ${fb.studentname}`)
+//       doc.text(`Course: ${fb.coursename}`)
+//       doc.text(`Subject: ${fb.subjectname}`)
+//       doc.text(`Period: ${fb.StartDate} - ${fb.EndDate}`)
+//       doc.text(`Overall Rating: ${fb.rating}`)
+//       if (fb.comments) doc.text(`Comments: ${fb.comments}`)
+//       doc.moveDown(0.5)
+
+//       fb.responses.forEach((r, i) => {
+//         doc.text(`   Q${i + 1}: ${r.questiontext}`)
+//         doc.text(`      Response: ${r.response_rating}`)
+//       })
+
+//       doc.moveDown(1)
+//     })
+
+//     doc.end()
+//   } catch (err) {
+//     console.error(err)
+//     res.status(500).send(' Error generating faculty feedback PDF')
+//   }
+// })
+
+
+// Download a single FilledFeedback PDF by ID
+router.get('/download/:filledfeedbacks_id', async (req, res) => {
+  const { filledfeedbacks_id } = req.params;
 
   try {
-    // 1. Fetch all feedbacks for that faculty
-    const [rows] = await db.execute(`
+    // Fetch feedback details
+    const [feedbackRows] = await db.execute(`
       SELECT
         FF.filledfeedbacks_id,
+        FF.schedulefeedback_id,
         FF.comments,
         FF.rating,
         S.studentname,
@@ -256,63 +369,54 @@ router.get('/download/faculty/:faculty_id', async (req, res) => {
       INNER JOIN Course AS C ON SF.course_id = C.course_id
       INNER JOIN Subject AS Sub ON SF.subject_id = Sub.subject_id
       INNER JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
-      WHERE SF.faculty_id = ?
-      ORDER BY FF.filledfeedbacks_id
-    `, [faculty_id])
+      WHERE FF.filledfeedbacks_id = ?
+    `, [filledfeedbacks_id]);
 
-    if (rows.length === 0) {
-      return res.status(404).send(' No feedback found for this faculty')
-    }
+    if (feedbackRows.length === 0) return res.status(404).send('Feedback not found');
 
-    // 2. Fetch responses for each feedback
-    const feedbackWithResponses = []
-    for (const fb of rows) {
-      const [responses] = await db.execute(`
-        SELECT FQ.questiontext, FR.response_rating
-        FROM FeedbackResponses FR
-        INNER JOIN FeedbackQuestions FQ ON FR.feedbackquestion_id = FQ.feedbackquestion_id
-        WHERE FR.filledfeedbacks_id = ?
-      `, [fb.filledfeedbacks_id])
-      feedbackWithResponses.push({ ...fb, responses })
-    }
+    const feedback = feedbackRows[0];
 
-    // 3. Generate PDF
-    const PDFDocument = require('pdfkit')
-    const doc = new PDFDocument({ margin: 40 })
-    res.setHeader('Content-Disposition', `attachment; filename=faculty-${faculty_id}-feedbacks.pdf`)
-    res.setHeader('Content-Type', 'application/pdf')
-    doc.pipe(res)
+    // Fetch all responses for this feedback
+    const [responses] = await db.execute(`
+      SELECT FQ.questiontext, FR.response_rating
+      FROM FeedbackResponses FR
+      INNER JOIN FeedbackQuestions FQ ON FR.feedbackquestion_id = FQ.feedbackquestion_id
+      WHERE FR.filledfeedbacks_id = ?
+    `, [filledfeedbacks_id]);
 
-    // Title
-    doc.fontSize(20).text(`Feedback Report for ${rows[0].facultyname}`, { align: 'center' })
-    doc.moveDown()
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ margin: 40 });
 
-    // Each feedback
-    feedbackWithResponses.forEach((fb, index) => {
-      doc.fontSize(14).text(`Feedback #${index + 1}`, { underline: true })
-      doc.moveDown(0.3)
-      doc.text(`Student: ${fb.studentname}`)
-      doc.text(`Course: ${fb.coursename}`)
-      doc.text(`Subject: ${fb.subjectname}`)
-      doc.text(`Period: ${fb.StartDate} - ${fb.EndDate}`)
-      doc.text(`Overall Rating: ${fb.rating}`)
-      if (fb.comments) doc.text(`Comments: ${fb.comments}`)
-      doc.moveDown(0.5)
+    res.setHeader('Content-Disposition', `attachment; filename=filledfeedback-${filledfeedbacks_id}.pdf`);
+    res.setHeader('Content-Type', 'application/pdf');
 
-      fb.responses.forEach((r, i) => {
-        doc.text(`   Q${i + 1}: ${r.questiontext}`)
-        doc.text(`      Response: ${r.response_rating}`)
-      })
+    doc.pipe(res);
 
-      doc.moveDown(1)
-    })
+    // PDF content
+    doc.fontSize(20).text(`Feedback ID: ${feedback.filledfeedbacks_id}`, { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(14).text(`Student: ${feedback.studentname}`);
+    doc.text(`Course: ${feedback.coursename}`);
+    doc.text(`Subject: ${feedback.subjectname}`);
+    doc.text(`Faculty: ${feedback.facultyname}`);
+    doc.text(`Schedule: ${feedback.StartDate} - ${feedback.EndDate}`);
+    doc.text(`ScheduleFeedback ID: ${feedback.schedulefeedback_id}`);
+    doc.text(`Overall Rating: ${feedback.rating}`);
+    doc.text(`Comments: ${feedback.comments || '-'}`);
+    doc.moveDown();
 
-    doc.end()
+    responses.forEach((r, i) => {
+      doc.text(`Q${i + 1}: ${r.questiontext}`);
+      doc.text(`   Response: ${r.response_rating}`);
+    });
+
+    doc.end();
+
   } catch (err) {
-    console.error(err)
-    res.status(500).send(' Error generating faculty feedback PDF')
+    console.error(err);
+    res.status(500).send('Error generating PDF');
   }
-})
+});
 
 
 module.exports = router

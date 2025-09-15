@@ -12,7 +12,7 @@ router.post('/register', async (request, response) => {
   const { studentname, email, password, course_id,batch_id} = request.body;
 
 
-  // ✅ Validation
+  // Validation
   if (!studentname || !email || !password || !course_id || !batch_id) {
     return response.status(400).json({
       status: 'error',
@@ -78,8 +78,8 @@ router.post('/login', async (req, res) => {
           s.course_id, 
           s.batch_id, 
           c.coursename
-       FROM student s
-       LEFT JOIN course c ON s.course_id = c.course_id
+       FROM Student s
+       LEFT JOIN Course c ON s.course_id = c.course_id
        WHERE s.email = ?`,
       [email]
     )
@@ -136,7 +136,7 @@ router.post('/forgotpassword', async (req, res) => {
 
   try {
     const [rows] = await db.execute(
-      `SELECT student_id, email FROM student WHERE email = ?`,
+      `SELECT student_id, email FROM Student WHERE email = ?`,
       [email]
     )
 
@@ -175,7 +175,7 @@ router.post('/resetpassword', async (req, res) => {
     const encryptedPassword = cryptoJs.SHA256(newPassword).toString()
 
     await db.execute(
-      `UPDATE student SET password = ? WHERE student_id = ?`,
+      `UPDATE Student SET password = ? WHERE student_id = ?`,
       [encryptedPassword, decoded.student_id]
     )
 
@@ -203,7 +203,7 @@ router.put('/update/:id', async (req, res) => {
 
     // SQL Update query (conditionally includes password if provided)
     const statement = `
-      UPDATE student 
+      UPDATE Student 
       SET studentname = ?, 
           email = ?, 
           ${password ? 'password = ?,' : ''} 
@@ -236,7 +236,7 @@ router.put('/update/:id', async (req, res) => {
 router.delete("/delete/:id", (req, res) => {
   const student_id = req.params.id;
 
-  db.query("DELETE FROM student WHERE student_id = ?", [student_id], (err, result) => {
+  db.query("DELETE FROM Student WHERE student_id = ?", [student_id], (err, result) => {
     if (err) {
       return res.status(500).json({ error: err });
     }
@@ -258,7 +258,7 @@ router.get('/getall', async (request, response) => {
   try {
     const statement = `
       SELECT student_id, studentname, email, password, course_id,batch_id 
-      FROM student
+      FROM Student
     `
     const [result] = await db.execute(statement, [])
     response.send(utils.createSuccess(result))
@@ -276,7 +276,7 @@ router.get('/profile', async (req, res) => {
 
     const statement = `
       SELECT student_id, studentname, email, course_id,batch_id
-      FROM student
+      FROM Student
       WHERE student_id = ?
     `
     const [result] = await db.execute(statement, [student_id])
@@ -308,7 +308,7 @@ router.put('/changepassword', async (req, res) => {
     const encryptedOldPassword = cryptoJs.SHA256(oldPassword).toString()
 
     const [users] = await db.execute(
-      `SELECT student_id FROM student WHERE student_id = ? AND password = ?`,
+      `SELECT student_id FROM Student WHERE student_id = ? AND password = ?`,
       [student_id, encryptedOldPassword]
     )
 
@@ -321,7 +321,7 @@ router.put('/changepassword', async (req, res) => {
 
     // Update DB
     await db.execute(
-      `UPDATE student SET password = ? WHERE student_id = ?`,
+      `UPDATE Student SET password = ? WHERE student_id = ?`,
       [encryptedNewPassword, student_id]
     )
 
@@ -335,7 +335,7 @@ router.put('/changepassword', async (req, res) => {
 //  Delete Student
 router.delete("/:id", (req, res) => {
   const { id } = req.params;
-  db.query("DELETE FROM student WHERE student_id=?", [id], (err, result) => {
+  db.query("DELETE FROM Student WHERE student_id=?", [id], (err, result) => {
     if (err) return res.status(500).json({ error: err });
     res.json({ message: "Student deleted successfully" });
   });
@@ -345,7 +345,7 @@ router.delete("/:id", (req, res) => {
 router.put("/:id", (req, res) => {
   const { id } = req.params;
   const { name, email, course_id } = req.body;
-  const sql = "UPDATE student SET name=?, email=?, course_id=? WHERE student_id=?";
+  const sql = "UPDATE Student SET name=?, email=?, course_id=? WHERE student_id=?";
   db.query(sql, [name, email, course_id, id], (err, result) => {
     if (err) return res.status(500).json({ error: err });
     res.json({ message: "Student updated successfully" });
@@ -368,7 +368,7 @@ router.post('/filledfeedback', async (req, res) => {
   try {
     // 1. Insert into filledfeedback (rating = 0 initially)
     const [result] = await connection.execute(
-      `INSERT INTO filledfeedback (student_id, schedulefeedback_id, comments, rating) 
+      `INSERT INTO Filledfeedback (student_id, schedulefeedback_id, comments, rating) 
        VALUES (?, ?, ?, 0)`,
       [student_id, schedulefeedback_id, comments || null]
     )
@@ -378,7 +378,7 @@ router.post('/filledfeedback', async (req, res) => {
     // 2. Insert responses (store response_text as response_rating)
     for (const resp of responses) {
       await connection.execute(
-        `INSERT INTO feedbackresponses (filledfeedbacks_id, feedbackquestion_id, response_rating)
+        `INSERT INTO Feedbackresponses (filledfeedbacks_id, feedbackquestion_id, response_rating)
          VALUES (?, ?, ?)`,
         [filledfeedbacks_id, resp.feedbackquestion_id, resp.response_text]
       )
@@ -386,7 +386,7 @@ router.post('/filledfeedback', async (req, res) => {
 
     // 3. Update filledfeedback.rating based on average mapping
     const updateQuery = `
-      UPDATE filledfeedback
+      UPDATE Filledfeedback
       SET rating = (
         SELECT ROUND(AVG(
           CASE
@@ -397,7 +397,7 @@ router.post('/filledfeedback', async (req, res) => {
             ELSE 1
           END
         ))
-        FROM feedbackresponses fr
+        FROM Feedbackresponses fr
         WHERE fr.filledfeedbacks_id = ?
       )
       WHERE filledfeedbacks_id = ?
@@ -407,14 +407,14 @@ router.post('/filledfeedback', async (req, res) => {
     // 4. Fetch updated filledfeedback and responses
     const [filledfeedbackRows] = await connection.execute(
       `SELECT filledfeedbacks_id, student_id, schedulefeedback_id, comments, rating
-       FROM filledfeedback
+       FROM Filledfeedback
        WHERE filledfeedbacks_id = ?`,
       [filledfeedbacks_id]
     )
 
     const [responseRows] = await connection.execute(
       `SELECT feedbackquestion_id, response_rating AS response_text
-       FROM feedbackresponses
+       FROM Feedbackresponses
        WHERE filledfeedbacks_id = ?`,
       [filledfeedbacks_id]
     )

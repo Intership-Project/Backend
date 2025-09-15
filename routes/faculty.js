@@ -76,8 +76,8 @@ router.post('/login', async (req, res) => {
         // Check in Faculty 
         const [facultyRows] = await db.execute(
             `SELECT f.faculty_id, f.facultyname, f.email,f.password, f.role_id, r.rolename
-             FROM faculty f
-             JOIN role r ON f.role_id = r.role_id
+             FROM Faculty f
+             JOIN Role r ON f.role_id = r.role_id
              WHERE f.email = ?`,
             [email]
         );
@@ -105,7 +105,7 @@ router.post('/login', async (req, res) => {
 
             // Verify course exists
             const [courseRows] = await db.execute(
-                ` SELECT course_id, coursename FROM course WHERE course_id = ?`,
+                ` SELECT course_id, coursename FROM Course WHERE course_id = ?`,
                 [course_id]
             );
 
@@ -114,7 +114,7 @@ router.post('/login', async (req, res) => {
             }
 
              await db.execute(
-                  `UPDATE faculty SET course_id = ? WHERE faculty_id = ?`,
+                  `UPDATE Faculty SET course_id = ? WHERE faculty_id = ?`,
                     [course_id, faculty.faculty_id]
     );
 
@@ -184,7 +184,7 @@ router.get('/:faculty_id', async (req, res) => {
         const facultyId = req.params.faculty_id;
         const [rows] = await db.execute
             (
-                'SELECT f.faculty_id, f.facultyname, f.email, r.rolename FROM faculty f JOIN role r ON f.role_id = r.role_id WHERE f.faculty_id = ?',
+                'SELECT f.faculty_id, f.facultyname, f.email, r.rolename FROM Faculty f JOIN Role r ON f.role_id = r.role_id WHERE f.faculty_id = ?',
                 [facultyId]
             );
 
@@ -199,7 +199,7 @@ router.get('/:faculty_id', async (req, res) => {
 })
 
 
-// UPDATE Faculty (PUT)
+// // UPDATE Faculty (PUT)
 
 
 router.put('/profile', async (req, res) => {
@@ -212,7 +212,7 @@ router.put('/profile', async (req, res) => {
         
 
         const statement = `
-            UPDATE faculty
+            UPDATE Faculty
             SET facultyname = ?, email = ?
             WHERE faculty_id = ?
         `;
@@ -230,6 +230,9 @@ router.put('/profile', async (req, res) => {
          res.send(utils.createError(ex.message || ex));
     }
 })
+
+
+
 
 
 // DELETE Faculty (DELETE)
@@ -255,7 +258,7 @@ router.get('/profile/:faculty_id', async (req, res) => {
     try {
         const statement = `
             SELECT faculty_id, facultyname, email, role_id
-            FROM faculty
+            FROM Faculty
             WHERE faculty_id = ?
         `;
 
@@ -281,7 +284,7 @@ router.post('/forgotpassword', async (req, res) => {
     try {
 
 
-        const [rows] = await db.execute(`SELECT faculty_id, email FROM faculty WHERE email = ?`, [email])
+        const [rows] = await db.execute(`SELECT faculty_id, email FROM Faculty WHERE email = ?`, [email])
 
         if (rows.length === 0) {
             return res.send(utils.createError('Faculty not found with this email'))
@@ -311,7 +314,7 @@ router.post('/resetpassword', async (req, res) => {
         const encryptedPassword = cryptoJs.SHA256(newPassword).toString();
 
         await db.execute(
-            `UPDATE faculty SET password = ? WHERE faculty_id = ?`,
+            `UPDATE Faculty SET password = ? WHERE faculty_id = ?`,
             [encryptedPassword, decoded.faculty_id]
         )
 
@@ -333,7 +336,7 @@ router.put('/changepassword', async (req, res) => {
     try {
         // 1. Get faculty by ID
         const [rows] = await db.execute(
-            `SELECT password FROM faculty WHERE faculty_id = ?`,
+            `SELECT password FROM Faculty WHERE faculty_id = ?`,
             [faculty_id]
         )
 
@@ -355,7 +358,7 @@ router.put('/changepassword', async (req, res) => {
 
         // 4. Update password in DB
         await db.execute(
-            `UPDATE faculty SET password = ? WHERE faculty_id = ?`,
+            `UPDATE Faculty SET password = ? WHERE faculty_id = ?`,
             [newHash, faculty_id]
         )
 
@@ -395,7 +398,7 @@ router.get('/feedbacks', verifyToken, async (req, res) => {
     // Fetch feedbacks
     const [rows] = await db.execute(
       `SELECT addfeedback_id, pdf_file, date 
-       FROM addfeedback 
+       FROM Addfeedback 
        WHERE faculty_id = ? AND pdf_file IS NOT NULL
        ORDER BY date DESC`,
       [faculty_id]
@@ -594,9 +597,86 @@ router.get("/faculty/pdf/:id", async (req, res) => {
   }
 });
 
+//update faculty with role
+
+router.put('/update/:faculty_id', async (req, res) => {
+    const { faculty_id } = req.params;
+    const { facultyname, email, password, role_id, course_id } = req.body;
+
+    try {
+        let updateFields = [];
+        let updateValues = [];
+
+        // Optional password update
+        if (typeof password !== 'undefined') {
+            const encryptedPassword = String(cryptoJs.SHA256(password));
+            updateFields.push('password = ?');
+            updateValues.push(encryptedPassword);
+        }
+
+        // Optional facultyname update
+        if (typeof facultyname !== 'undefined') {
+            updateFields.push('facultyname = ?');
+            updateValues.push(facultyname);
+        }
+
+        // Optional email update
+        if (typeof email !== 'undefined') {
+            updateFields.push('email = ?');
+            updateValues.push(email);
+        }
+
+        // Optional role_id update
+        if (typeof role_id !== 'undefined') {
+            updateFields.push('role_id = ?');
+            updateValues.push(role_id);
+        }
+
+        // Optional course_id update ONLY for Course Coordinators
+        if (typeof course_id !== 'undefined' && role_id === 7) {
+            updateFields.push('course_id = ?');
+            updateValues.push(course_id);
+        }
+
+        if (updateFields.length === 0) {
+            return res.status(400).send(utils.createError('No fields to update'));
+        }
+
+        const statement = `
+            UPDATE Faculty
+            SET ${updateFields.join(', ')}
+            WHERE faculty_id = ?
+        `;
+
+        updateValues.push(faculty_id);
+
+        const [result] = await db.execute(statement, updateValues);
+
+        res.send(utils.createSuccess({
+            message: 'Faculty updated successfully',
+            updatedFacultyId: faculty_id
+        }));
+
+    } catch (ex) {
+        res.send(utils.createError(ex));
+    }
+});
+
+// Get faculty by role
+router.get('/role/:roleId', async (req, res) => {
+    const { roleId } = req.params;
+    try {
+        const statement = `
+            SELECT faculty_id, facultyname
+            FROM Faculty
+            WHERE role_id = ?
+        `;
+        const [rows] = await db.execute(statement, [roleId]);
+        res.send(utils.createSuccess(rows));
+    } catch (ex) {
+        res.send(utils.createError(ex));
+    }
+});
 
 
-
-
-
-module.exports = router;
+ module.exports = router;

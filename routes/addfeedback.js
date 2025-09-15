@@ -4,7 +4,7 @@ const db = require("../db");
 const utils = require("../utils");
 const upload = require("../middlewares/upload");
 
-// ✅ Admin Add Feedback
+//  Admin Add Feedback
 router.post("/add", upload.single("pdf_file"), async (req, res) => {
   try {
     const { id: adminId, username, email } = req.data; // decoded from admin JWT
@@ -20,7 +20,7 @@ router.post("/add", upload.single("pdf_file"), async (req, res) => {
       return res.send(utils.createError("All required fields and PDF must be provided"));
     }
 
-    // ✅ Ensure faculty exists
+    // Ensure faculty exists
     const [facultyRows] = await db.execute("SELECT * FROM Faculty WHERE faculty_id = ?", [faculty_id]);
     if (facultyRows.length === 0) {
       return res.send(utils.createError("Invalid faculty selected"));
@@ -39,9 +39,9 @@ router.post("/add", upload.single("pdf_file"), async (req, res) => {
       finalBatchId = batch_id; // only lab mentor needs batch
     }
 
-    // ✅ Insert into addfeedback
+    // Insert into addfeedback
     const [result] = await db.execute(
-      `INSERT INTO Addfeedback 
+      `INSERT INTO addfeedback 
         (course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [course_id, finalBatchId, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, req.file.filename]
@@ -67,7 +67,7 @@ router.post("/add", upload.single("pdf_file"), async (req, res) => {
   }
 });
 
-// ✅ Get All Feedbacks
+//  Get All Feedbacks
 router.get("/all", async (req, res) => {
   try {
     const [rows] = await db.execute(
@@ -77,7 +77,7 @@ router.get("/all", async (req, res) => {
               af.faculty_id, f.facultyname,
               af.feedbackmoduletype_id, af.feedbacktype_id, 
               af.date, af.pdf_file, af.created_at
-       FROM Addfeedback af
+       FROM addfeedback af
        LEFT JOIN Course c ON af.course_id = c.course_id
        LEFT JOIN Batch b ON af.batch_id = b.batch_id
        LEFT JOIN Subject s ON af.subject_id = s.subject_id
