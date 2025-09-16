@@ -26,7 +26,7 @@ router.post('/register', async (request, response) => {
     let batchValue = null
 
     // Lab Mentor → must have batch
-    if (feedbacktype_id == 3) {
+    if (feedbacktype_id == 2) {
       if (!batch_id) {
         return response.send(utils.createError("Batch ID is required for Lab Mentor feedback type."))
       }
@@ -34,7 +34,7 @@ router.post('/register', async (request, response) => {
     }
 
     // Trainer → ignore batch (force null)
-    if (feedbacktype_id == 2) {
+    if (feedbacktype_id == 1) {
       batchValue = null
     }
 

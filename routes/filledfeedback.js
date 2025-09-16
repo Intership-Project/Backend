@@ -9,77 +9,93 @@ const PDFDocument = require('pdfkit')
 
 //  POST FilledFeedback 
 router.post('/', async (req, res) => {
-  const { student_id, schedulefeedback_id, comments, questionResponses } = req.body
-  let connection
+  const { student_id, schedulefeedback_id, comments, questionResponses } = req.body;
+  let connection;
 
   try {
-    connection = await db.getConnection()
-    await connection.beginTransaction()
+    connection = await db.getConnection();
+    await connection.beginTransaction();
 
-    // 1. Insert into FilledFeedback (rating = 0 for now)
-    const insertFeedback = `
-      INSERT INTO FilledFeedback (student_id, schedulefeedback_id, comments, rating)
-      VALUES (?, ?, ?, 0)
-    `
-    const [result] = await connection.execute(insertFeedback, [
-      student_id ?? null,
-      schedulefeedback_id ?? null,
-      comments ?? null,
-    ])
+    // 1. Check if feedback already exists
+    const [existingFeedback] = await connection.execute(
+      `SELECT filledfeedbacks_id 
+       FROM FilledFeedback 
+       WHERE student_id = ? AND schedulefeedback_id = ?`,
+      [parseInt(student_id), parseInt(schedulefeedback_id)]
+    );
 
-    const filledfeedbacks_id = result.insertId
+    if (existingFeedback.length > 0) {
+      return res.send(utils.createError("You have already submitted feedback for this schedule."));
+    }
 
-    // 2. Insert responses if present
+    // 2. Insert feedback
+    const [result] = await connection.execute(
+      `INSERT INTO FilledFeedback (student_id, schedulefeedback_id, comments, rating, review_status)
+       VALUES (?, ?, ?, 0,  'Pending')`,
+      [parseInt(student_id), parseInt(schedulefeedback_id), comments ?? null]
+    );
+
+    const filledfeedbacks_id = result.insertId;
+
+    // 3. Insert responses
     if (Array.isArray(questionResponses) && questionResponses.length > 0) {
       const insertResponse = `
         INSERT INTO FeedbackResponses (filledfeedbacks_id, feedbackquestion_id, response_rating)
         VALUES (?, ?, ?)
-      `
-      for (const response of questionResponses) {
+      `;
+      for (const r of questionResponses) {
         await connection.execute(insertResponse, [
           filledfeedbacks_id,
-          response.feedbackquestion_id ?? null,
-          response.response_rating ?? null,
-        ])
+          r.feedbackquestion_id ?? null,
+          r.response_rating ?? null,
+        ]);
       }
     }
 
-    // 3. Update rating as average of responses
-    const updateRating = `
-      UPDATE FilledFeedback
-      SET rating = (
-        SELECT AVG(
-          CASE
-            WHEN FR.response_rating = 'excellent' THEN 5
-            WHEN FR.response_rating = 'good' THEN 4
-            WHEN FR.response_rating = 'satisfactory' THEN 3
-            WHEN FR.response_rating = 'unsatisfactory' THEN 2
-            ELSE 1
-          END
-        )
-        FROM FeedbackResponses FR
-        WHERE FR.filledfeedbacks_id = ?
-      )
-      WHERE filledfeedbacks_id = ?
-    `
-    await connection.execute(updateRating, [filledfeedbacks_id, filledfeedbacks_id])
+    // 4. Update rating
+    await connection.execute(
+      `UPDATE FilledFeedback
+       SET rating = (
+         SELECT AVG(
+           CASE
+             WHEN FR.response_rating = 'excellent' THEN 5
+             WHEN FR.response_rating = 'good' THEN 4
+             WHEN FR.response_rating = 'satisfactory' THEN 3
+             WHEN FR.response_rating = 'unsatisfactory' THEN 2
+             ELSE 1
+           END
+         )
+         FROM FeedbackResponses FR
+         WHERE FR.filledfeedbacks_id = ?
+       )
+       WHERE filledfeedbacks_id = ?`,
+      [filledfeedbacks_id, filledfeedbacks_id]
+    );
 
-    await connection.commit()
+    await connection.commit();
 
-    // 4. Get the saved feedback
-    const [rows] = await connection.execute(
+    // 5. Return inserted feedback
+    const [newFeedbackRows] = await connection.execute(
       `SELECT * FROM FilledFeedback WHERE filledfeedbacks_id = ?`,
       [filledfeedbacks_id]
-    )
+    );
 
-    res.send(utils.createSuccess(rows[0]))
-  } catch (ex) {
-    if (connection) await connection.rollback()
-    res.send(utils.createError(ex))
+    res.send(utils.createSuccess(newFeedbackRows[0]));
+
+  } catch (err) {
+    if (connection) await connection.rollback();
+
+    // Handle duplicate entry error
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.send(utils.createError("You have already submitted feedback for this schedule."));
+    }
+
+    res.send(utils.createError(err));
   } finally {
-    if (connection) connection.release()
+    if (connection) connection.release();
   }
-})
+});
+
 
 
 
@@ -112,16 +128,28 @@ router.get('/recent/:course_id', async (req, res) => {
   const { course_id } = req.params;
   try {
     const [rows] = await db.execute(`
-      SELECT FF.filledfeedbacks_id, S.studentname, Sub.subjectname, F.facultyname,
-             FF.rating, FF.comments, SF.StartDate, SF.EndDate
-      FROM FilledFeedback AS FF
-      INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
-      INNER JOIN Student AS S ON FF.student_id = S.student_id
-      INNER JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
-      INNER JOIN Subject AS Sub ON SF.subject_id = Sub.subject_id
-      WHERE SF.course_id = ?
-      ORDER BY FF.filledfeedbacks_id DESC
-      LIMIT 5
+    SELECT 
+    FF.filledfeedbacks_id,
+    S.studentname,
+    F.facultyname,
+    Sub.subjectname,
+    FMT.fbmoduletypename AS module,   
+    FT.fbtypename AS type,          
+    SF.StartDate,
+    SF.EndDate,
+    FF.rating,
+    FF.comments,
+     FF.review_status AS status
+FROM FilledFeedback AS FF
+INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
+INNER JOIN Student AS S ON FF.student_id = S.student_id
+INNER JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
+INNER JOIN Subject AS Sub ON SF.subject_id = Sub.subject_id
+LEFT JOIN FeedbackModuleType AS FMT ON SF.feedbackmoduletype_id = FMT.feedbackmoduletype_id
+LEFT JOIN FeedbackType AS FT ON SF.feedbacktype_id = FT.feedbacktype_id
+WHERE SF.course_id = ?
+ORDER BY FF.filledfeedbacks_id DESC
+LIMIT 3;
     `, [course_id]);
 
     res.send(utils.createSuccess(rows));
@@ -129,6 +157,25 @@ router.get('/recent/:course_id', async (req, res) => {
     res.send(utils.createError(err.message || err));
   }
 });
+
+
+
+// PUT /filledfeedback/:id/status
+router.put("/:id/status", async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    await db.execute(
+      "UPDATE FilledFeedback SET review_status = ? WHERE filledfeedbacks_id = ?",
+      [status, id]
+    );
+    res.send({ status: "success", message: "Status updated" });
+  } catch (err) {
+    res.send({ status: "error", error: err.message });
+  }
+});
+
 
 
 
@@ -232,27 +279,24 @@ router.delete('/:filledfeedbacks_id', async (req, res) => {
 
 
 //GET Responses for a specific FilledFeedback
-router.get('/:filledfeedbacks_id/responses', async (req, res) => {
-  const { filledfeedbacks_id } = req.params
+router.get('/details/:id', async (req, res) => {
+  const { id } = req.params;
   try {
-    const statement = `
-        SELECT
-          FQ.questiontext,
-          FR.response_rating
-        FROM FeedbackResponses AS FR
-        INNER JOIN FeedbackQuestions AS FQ ON FR.feedbackquestion_id = FQ.feedbackquestion_id
-        WHERE FR.filledfeedbacks_id = ?
-      `
-    const [rows] = await db.execute(statement, [filledfeedbacks_id])
-    if (rows.length === 0) {
-      res.send(utils.createError('No responses found'))
-    } else {
-      res.send(utils.createSuccess(rows))
-    }
-  } catch (ex) {
-    res.send(utils.createError(ex))
+    const [rows] = await db.execute(
+      `SELECT Q.feedbackquestion_id, Q.questiontext, R.response_rating
+       FROM feedbackresponses R
+       INNER JOIN feedbackquestions Q 
+         ON R.feedbackquestion_id = Q.feedbackquestion_id
+       WHERE R.filledfeedbacks_id = ?`,
+      [id]
+    );
+
+    res.send({ status: "success", data: rows });
+  } catch (err) {
+    res.send({ status: "error", error: err.message });
   }
-})
+});
+
 
 
 
@@ -372,4 +416,6 @@ router.get('/download/faculty/:faculty_id', async (req, res) => {
 
 
 module.exports = router
+
+
 
