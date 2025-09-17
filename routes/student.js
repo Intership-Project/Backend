@@ -5,6 +5,7 @@ const utils = require('../utils')
 const cryptoJs = require('crypto-js')
 const jwt = require('jsonwebtoken')
 const config = require('../config')
+const verifyToken = require('../middlewares/verifyToken');
 
 
 // student Registers
@@ -23,6 +24,18 @@ router.post('/register', async (request, response) => {
     
   }
   try {
+     // ✅ Check if batch exists
+    const [batchCheck] = await db.execute(
+      'SELECT batch_id FROM batch WHERE batch_id = ?',
+      [batch_id]
+    );
+
+    if (batchCheck.length === 0) {
+      return response.status(400).json({
+        status: 'error',
+        message: `Batch ID ${batch_id} does not exist`
+      });
+    }
     //  Encrypt password using SHA256 before saving into DB
     const encryptedPassword = String(cryptoJs.SHA256(password));
 
@@ -57,7 +70,6 @@ router.post('/register', async (request, response) => {
 
 
 
-
 //  Student Login API 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
@@ -66,10 +78,9 @@ router.post('/login', async (req, res) => {
     if (!email || !password) {
       return res.send(utils.createError('Email and password are required'))
     }
-   
-   
+
     // Check if student exists by email
-       const [studentRows] = await db.execute(
+    const [studentRows] = await db.execute(
       `SELECT 
           s.student_id, 
           s.studentname, 
@@ -95,7 +106,7 @@ router.post('/login', async (req, res) => {
     if (student.password !== encryptedPassword) {
       return res.send(utils.createError('Invalid password'))
     }
-      
+
     // Generate JWT token
     const token = jwt.sign(
       {
@@ -110,10 +121,10 @@ router.post('/login', async (req, res) => {
       { expiresIn: '1d' }
     )
 
-
-     // Send success response
+    // ✅ Send success response (student_id added)
     res.send(
       utils.createSuccess({
+        student_id: student.student_id,  // 🔥 added here
         token,
         studentname: student.studentname,
         email: student.email,
@@ -127,6 +138,7 @@ router.post('/login', async (req, res) => {
     res.send(utils.createError('Something went wrong during student login.'))
   }
 })
+
 
 
 
@@ -179,7 +191,13 @@ router.post('/resetpassword', async (req, res) => {
       [encryptedPassword, decoded.student_id]
     )
 
-    res.send(utils.createSuccess('Password reset successfully'))
+   res.send({
+  status: "success",
+  message: "Password reset successfully",
+  resetToken: null
+}); 
+
+
   } catch (ex) {
     console.error('Reset Password Error:', ex.message)
     res.send(utils.createError('Invalid or expired reset token'))
@@ -270,26 +288,30 @@ router.get('/getall', async (request, response) => {
 
 
 //  Get student Profile 
-router.get('/profile', async (req, res) => {
+
+
+
+router.get('/profile', verifyToken, async (req, res) => {
   try {
-    const student_id = req.data.student_id   
+    const student_id = req.data.student_id;
 
     const statement = `
       SELECT student_id, studentname, email, course_id,batch_id
       FROM student
       WHERE student_id = ?
-    `
-    const [result] = await db.execute(statement, [student_id])
+    `;
+    const [result] = await db.execute(statement, [student_id]);
 
     if (result.length === 0) {
-      return res.status(404).json({ message: 'Student not found' })
+      return res.status(404).json({ message: 'Student not found' });
     }
 
-    res.json(utils.createSuccess(result[0]))
+    res.json(utils.createSuccess(result[0]));
   } catch (ex) {
-    res.status(500).json(utils.createError(ex))
+    console.error(ex);
+    res.status(500).json(utils.createError(ex));
   }
-})
+});
 
 
 

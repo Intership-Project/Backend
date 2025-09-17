@@ -1,19 +1,18 @@
-// middlewares/verifyToken.js
 const jwt = require('jsonwebtoken');
 const config = require('../config');
-const utils = require('../utils');
 
 function verifyToken(req, res, next) {
-  const token = req.headers['token'];
-  if (!token) return res.status(401).send(utils.createError('missing token'));
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) return res.status(401).json({ message: 'Token missing' });
 
-  try {
-    const decoded = jwt.verify(token, config.secret);
-    req.data = decoded; // attach JWT payload
-    next();
-  } catch (err) {
-    return res.status(401).send(utils.createError('invalid token'));
-  }
+    const token = authHeader.split(' ')[1]; // Bearer <token>
+    if (!token) return res.status(401).json({ message: 'Token missing' });
+
+    jwt.verify(token, config.secret, (err, decoded) => {
+        if (err) return res.status(401).json({ message: 'Invalid token' });
+        req.data = decoded;  // student_id, studentname etc.
+        next();
+    });
 }
 
 module.exports = verifyToken;

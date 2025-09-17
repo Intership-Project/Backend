@@ -12,27 +12,28 @@ const PDFDocument = require('pdfkit')
 
 //  POST FilledFeedback with responses
 router.post('/', async (req, res) => {
-  const { student_id, schedulefeedback_id, comments, questionResponses } = req.body
+  const { student_id, schedulefeedback_id, comments, rating, questionResponses } = req.body
   let connection
 
   try {
     connection = await db.getConnection()
     await connection.beginTransaction()
 
-    // 1. Insert into FilledFeedback (rating = 0 for now)
+    // 1. Insert into FilledFeedback (use rating from request)
     const insertFeedback = `
       INSERT INTO FilledFeedback (student_id, schedulefeedback_id, comments, rating)
-      VALUES (?, ?, ?, 0)
+      VALUES (?, ?, ?, ?)
     `
     const [result] = await connection.execute(insertFeedback, [
       student_id ?? null,
       schedulefeedback_id ?? null,
       comments ?? null,
+      rating ?? null // ✅ Rating from Android
     ])
 
     const filledfeedbacks_id = result.insertId
 
-    // 2. Insert responses if present
+    // 2. Insert responses if present (optional)
     if (Array.isArray(questionResponses) && questionResponses.length > 0) {
       const insertResponse = `
         INSERT INTO FeedbackResponses (filledfeedbacks_id, feedbackquestion_id, response_rating)
@@ -47,25 +48,9 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 3. Update rating as average of responses
-    const updateRating = `
-      UPDATE FilledFeedback
-      SET rating = (
-        SELECT AVG(
-          CASE
-            WHEN FR.response_rating = 'excellent' THEN 5
-            WHEN FR.response_rating = 'good' THEN 4
-            WHEN FR.response_rating = 'satisfactory' THEN 3
-            WHEN FR.response_rating = 'unsatisfactory' THEN 2
-            ELSE 1
-          END
-        )
-        FROM FeedbackResponses FR
-        WHERE FR.filledfeedbacks_id = ?
-      )
-      WHERE filledfeedbacks_id = ?
-    `
-    await connection.execute(updateRating, [filledfeedbacks_id, filledfeedbacks_id])
+    // ❌ Remove rating recalculation step (optional)
+    // Because now we are trusting the rating sent from Android
+    // If you still want to calculate rating from responses, keep this block
 
     await connection.commit()
 
@@ -87,8 +72,9 @@ router.post('/', async (req, res) => {
 
 
 
+
 // GET all FilledFeedback (with course, subject, faculty, student)
-router.get('/', async (req, res) => {
+router.get('/getall', async (req, res) => {
   try {
     const statement = `
       SELECT

@@ -5,6 +5,8 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const utils = require('./utils');
 
+
+
 // Routes
 const facultyRouter = require('./routes/faculty');
 const coursecordinatorRouter = require('./routes/coursecordinator');
@@ -33,6 +35,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 
+
 // Public routes that do NOT require JWT
 const publicUrls = [
   '/faculty/register',
@@ -44,7 +47,22 @@ const publicUrls = [
   '/student/register',
   '/student/login',
   '/admin/register',
-  '/admin/login'
+  '/admin/login',
+  '/filledfeedback/getall',
+   '/schedulefeedback',
+   '/feedbacktype',
+   '/feedbackmoduletype',
+   '/student/profile',
+   '/course',
+   '/batch',
+   '/feedbackquestion/feedbacktype',
+   '/feedbackmoduletype',
+   '/feedbackmoduletype/byfeedbacktype/:feedbacktype_id',
+   '/filledfeedback',
+   '/batch/course/:course_id'
+
+
+
 ];
 
 

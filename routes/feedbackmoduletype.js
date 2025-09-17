@@ -96,6 +96,32 @@ router.delete('/:feedbackmoduletype_id', async (req, res) => {
       }
     }
   })
+
+// GET FeedbackModuleType by Feedback Type ID
+router.get('/byfeedbacktype/:feedbacktype_id', async (req, res) => {
+  const { feedbacktype_id } = req.params;
+
+  try {
+    const statement = `
+      SELECT fmt.feedbackmoduletype_id, fmt.fbmoduletypename, fmt.feedbacktype_id, ft.fbtypename
+      FROM FeedbackModuleType fmt
+      INNER JOIN FeedbackType ft ON fmt.feedbacktype_id = ft.feedbacktype_id
+      WHERE fmt.feedbacktype_id = ?
+    `;
+
+    const [rows] = await db.execute(statement, [feedbacktype_id]);
+
+    if (rows.length === 0) {
+      res.send(utils.createError('No module types found for this Feedback Type'));
+    } else {
+      res.send(utils.createSuccess(rows)); // ✅ array return karega
+    }
+
+  } catch (ex) {
+    res.send(utils.createError(ex));
+  }
+});
+
   
    
 module.exports = router
