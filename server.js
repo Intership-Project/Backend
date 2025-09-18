@@ -49,10 +49,23 @@ const publicUrls = [
   '/admin/login'
 ];
 
+// Serve uploaded PDFs (public)
+const uploadsPath = path.join(__dirname, 'uploads');
+console.log("📂 Serving static files from:", uploadsPath);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+
+
+
 
 // Apply verifyToken for protected routes
 app.use((req, res, next) => {
-  if (publicUrls.some(url => req.originalUrl.startsWith(url))) return next();
+  if (
+    publicUrls.some(url => req.originalUrl.startsWith(url)) ||
+    req.originalUrl.startsWith('/uploads')    // ✅ skip token for PDFs
+  ) {
+    return next();
+  }
   verifyToken(req, res, next);
 });
 
@@ -73,8 +86,6 @@ app.use('/feedbackquestion', feedbackquestionRouter);
 app.use('/schedulefeedback', schedulefeedbackRouter);
 
 
-// Serve uploaded PDFs
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads/feedback_reports')));
 
 app.listen(PORT, () => {
   console.log(`Server started on port ${PORT}`);

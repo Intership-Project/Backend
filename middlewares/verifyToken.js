@@ -9,6 +9,7 @@ function verifyToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, config.secret);
+     console.log(" Decoded JWT:", decoded); 
     req.data = decoded; // attach JWT payload
     next();
   } catch (err) {
