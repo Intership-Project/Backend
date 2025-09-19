@@ -4,6 +4,7 @@ const db = require('../db')
 const utils = require('../utils')
 const config = require('../config')
 const PDFDocument = require('pdfkit')
+const verifyToken = require("../middlewares/verifyToken");
 
 
 
@@ -175,6 +176,166 @@ router.put("/:id/status", async (req, res) => {
     res.send({ status: "error", error: err.message });
   }
 });
+
+
+
+
+
+
+
+//  Get all feedbacks for a course with responses (CC view)
+router.get("/course/:courseId/grouped", verifyToken, async (req, res) => {
+  const { courseId } = req.params;
+  const user = req.data; // decoded JWT payload
+
+  try {
+
+    if (user.rolename !== "Course Coordinator" || user.course_id != courseId) {
+      return res.status(403).send(utils.createError("Access denied"));
+    }
+
+    // Get all schedules for this course
+    const [schedules] = await db.execute(
+      `SELECT 
+        sf.schedulefeedback_id,
+        c.coursename,
+        sub.subjectname,
+        f.facultyname,
+        sf.StartDate,
+        sf.EndDate
+      FROM schedulefeedback sf
+      JOIN course c ON sf.course_id = c.course_id
+      JOIN subject sub ON sf.subject_id = sub.subject_id
+      JOIN faculty f ON sf.faculty_id = f.faculty_id
+      WHERE sf.course_id = ?
+      ORDER BY sf.StartDate DESC
+      `,
+      [courseId]
+    );
+
+    const groupedFeedbacks = [];
+
+    // For each schedule, get feedbacks and responses
+    for (const schedule of schedules) {
+      const [feedbacks] = await db.execute(
+        `SELECT 
+           f.filledfeedbacks_id,
+           s.studentname,
+           f.comments,
+           f.rating
+         FROM filledfeedback f
+         JOIN student s ON f.student_id = s.student_id
+         WHERE f.schedulefeedback_id = ?
+         ORDER BY f.filledfeedbacks_id DESC`,
+        [schedule.schedulefeedback_id]
+      );
+
+      for (const fb of feedbacks) {
+        const [responses] = await db.execute(
+          `SELECT 
+             q.feedbackquestion_id,
+             q.questiontext AS question,
+             fr.response_rating
+           FROM feedbackresponses fr
+           JOIN feedbackquestions q 
+             ON fr.feedbackquestion_id = q.feedbackquestion_id
+           WHERE fr.filledfeedbacks_id = ?
+           ORDER BY q.feedbackquestion_id`,
+          [fb.filledfeedbacks_id]
+        );
+
+        fb.responses = responses;
+      }
+
+      groupedFeedbacks.push({ schedule, feedbacks });
+    }
+
+    res.send(utils.createSuccess(groupedFeedbacks));
+  } catch (err) {
+    console.error(" SQL or server error:", err);
+    res.status(500).send(utils.createError(err.message));
+  }
+});
+
+
+
+// Download all responses PDF for a schedule (CC access)
+router.get("/download/schedule/:scheduleId", verifyToken, async (req, res) => {
+  const { scheduleId } = req.params;
+  const user = req.data; // decoded JWT payload
+
+  try {
+    // Only allow Course Coordinator of this course
+    const [[schedule]] = await db.execute(
+      `SELECT course_id FROM schedulefeedback WHERE schedulefeedback_id = ?`,
+      [scheduleId]
+    );
+
+    if (!schedule || user.rolename !== "Course Coordinator" || user.course_id != schedule.course_id) {
+      return res.status(403).send(utils.createError("Access denied"));
+    }
+
+    // Fetch all feedbacks for this schedule
+    const [feedbacks] = await db.execute(
+      `SELECT 
+         f.filledfeedbacks_id,
+         s.studentname,
+         f.comments,
+         f.rating
+       FROM filledfeedback f
+       JOIN student s ON f.student_id = s.student_id
+       WHERE f.schedulefeedback_id = ?
+       ORDER BY f.filledfeedbacks_id`,
+      [scheduleId]
+    );
+
+    // Include responses
+    for (const fb of feedbacks) {
+      const [responses] = await db.execute(
+        `SELECT fq.questiontext, fr.response_rating
+         FROM feedbackresponses fr
+         JOIN feedbackquestions fq ON fr.feedbackquestion_id = fq.feedbackquestion_id
+         WHERE fr.filledfeedbacks_id = ?`,
+        [fb.filledfeedbacks_id]
+      );
+      fb.responses = responses;
+    }
+
+    // Generate PDF
+    const PDFDocument = require("pdfkit");
+    const doc = new PDFDocument();
+    let filename = `schedule-${scheduleId}-responses.pdf`;
+    filename = encodeURIComponent(filename);
+
+    res.setHeader("Content-disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-type", "application/pdf");
+
+    doc.pipe(res);
+
+    doc.fontSize(16).text(`Feedback Responses for Schedule ID: ${scheduleId}`, {
+      align: "center",
+    });
+    doc.moveDown();
+
+    feedbacks.forEach((fb) => {
+      doc.fontSize(12).text(`Student: ${fb.studentname}`);
+      doc.text(`Comments: ${fb.comments}`);
+      doc.text(`Rating: ${fb.rating}`);
+      fb.responses.forEach((r, idx) => {
+        doc.text(`Q${idx + 1}: ${r.questiontext}`);
+        doc.text(`Answer: ${r.response_rating}`);
+      });
+      doc.moveDown();
+    });
+
+    doc.end();
+  } catch (err) {
+    console.error("Error generating PDF:", err);
+    res.status(500).send(utils.createError(err.message));
+  }
+});
+
+
 
 
 

@@ -10,9 +10,7 @@ const verifyToken = require('../middlewares/verifyToken');
 
 const router = express.Router();
 
-// ============================
-// 1. PUBLIC ROUTES (No JWT)
-// ============================
+
 
 // REGISTER Faculty
 router.post('/register', async (req, res) => {
@@ -52,6 +50,9 @@ router.post('/register', async (req, res) => {
     res.send(utils.createError(ex));
   }
 });
+
+
+
 
 // LOGIN Faculty
 router.post('/login', async (req, res) => {
@@ -106,6 +107,9 @@ router.post('/login', async (req, res) => {
   }
 });
 
+
+
+
 // Forgot Password
 router.post('/forgotpassword', async (req, res) => {
   const { email } = req.body;
@@ -124,6 +128,9 @@ router.post('/forgotpassword', async (req, res) => {
   }
 });
 
+
+
+
 // Reset Password
 router.post('/resetpassword', async (req, res) => {
   const { resetToken, newPassword } = req.body;
@@ -138,11 +145,8 @@ router.post('/resetpassword', async (req, res) => {
   }
 });
 
-// ============================
-// 2. PROTECTED ROUTES (JWT Required)
-// ============================
 
-router.use(verifyToken);
+
 
 // Update Profile
 router.put('/profile', async (req, res) => {
@@ -158,6 +162,9 @@ router.put('/profile', async (req, res) => {
     res.send(utils.createError(ex.message || ex));
   }
 });
+
+
+
 
 // Change Password
 router.put('/changepassword', async (req, res) => {
@@ -183,6 +190,8 @@ router.put('/changepassword', async (req, res) => {
     res.send(utils.createError("Something went wrong in change-password"));
   }
 });
+
+
 
 
 
@@ -212,6 +221,7 @@ router.get("/faculty-feedback", async (req, res) => {
 
 
 
+
 // Get Trainers & Lab Mentors
 router.get('/trainers-labs', async (req, res) => {
   try {
@@ -221,6 +231,8 @@ router.get('/trainers-labs', async (req, res) => {
     res.send(utils.createError(err));
   }
 });
+
+
 
 // Get batches for a faculty
 router.get('/:faculty_id/batches', async (req, res) => {
@@ -241,6 +253,8 @@ router.get('/:faculty_id/batches', async (req, res) => {
   }
 });
 
+
+
 // Get all faculty
 router.get("/all", async (req, res) => {
   try {
@@ -250,6 +264,8 @@ router.get("/all", async (req, res) => {
     res.send(utils.createError(err.message));
   }
 });
+
+
 
 // Get single faculty by ID
 router.get('/:faculty_id', async (req, res) => {
@@ -271,6 +287,8 @@ router.get('/:faculty_id', async (req, res) => {
   }
 });
 
+
+
 // Delete faculty (Admin only)
 router.delete('/:faculty_id', async (req, res) => {
   const { faculty_id } = req.params;
@@ -283,6 +301,9 @@ router.delete('/:faculty_id', async (req, res) => {
     res.send(utils.createError(ex));
   }
 });
+
+
+
 
 // Download specific feedback PDF
 router.get('/feedbacks/:id/download', async (req, res) => {
