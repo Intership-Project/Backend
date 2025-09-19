@@ -48,7 +48,8 @@ const publicUrls = [
   '/admin/register',
   '/admin/login',
    '/admin/forgotpassword',
-  '/admin/resetpassword'
+  '/admin/resetpassword',
+  '/course/courses'
 
 ];
 
