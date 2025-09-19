@@ -91,4 +91,71 @@ router.post('/login', async (req, res) => {
   }
 })
 
+
+
+
+// POST /admin/forgotpassword
+router.post('/forgotpassword', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const [rows] = await db.execute(`SELECT id, email FROM Admin WHERE email = ?`, [email]);
+
+    if (rows.length === 0) {
+      return res.send(utils.createError('Admin not found with this email'));
+    }
+
+    const admin = rows[0];
+    // Token valid for 20 minutes
+    const resetToken = jwt.sign(
+      { id: admin.id, email: admin.email },
+      config.secret,
+      { expiresIn: '20m' }
+    );
+
+    // Here you can send email with resetToken using your email service
+    // sendEmail(admin.email, resetToken);
+
+    res.send(utils.createSuccess({ resetToken }));
+  } catch (ex) {
+    console.error("Admin Forgot Password Error:", ex);
+    res.send(utils.createError("Something went wrong"));
+  }
+});
+
+
+
+// POST /admin/resetpassword
+router.post("/resetpassword", async (req, res) => {
+  const { resetToken, newPassword } = req.body;
+
+  if (!resetToken || !newPassword) {
+    return res.send(utils.createError("Token and new password are required"));
+  }
+
+  try {
+    // Verify token
+    const decoded = jwt.verify(resetToken, config.secret);
+
+    // Encrypt new password
+    const encryptedPassword = cryptoJs.SHA256(newPassword).toString();
+
+    // Update password in Admin table
+    await db.execute(`UPDATE Admin SET password = ? WHERE id = ?`, [
+      encryptedPassword,
+      decoded.id,
+    ]);
+
+    res.send(utils.createSuccess("Password reset successfully"));
+  } catch (ex) {
+    console.error("Admin Reset Password Error:", ex);
+    res.send(utils.createError("Invalid or expired reset token"));
+  }
+});
+
+
+
+
+
+
 module.exports = router

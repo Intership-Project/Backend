@@ -46,7 +46,10 @@ const publicUrls = [
   '/student/register',
   '/student/login',
   '/admin/register',
-  '/admin/login'
+  '/admin/login',
+   '/admin/forgotpassword',
+  '/admin/resetpassword'
+
 ];
 
 // Serve uploaded PDFs (public)
