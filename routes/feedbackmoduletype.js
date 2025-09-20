@@ -120,4 +120,33 @@ router.get('/feedbacktype/:feedbacktype_id', async (req, res) => {
 });
 
 
+  // GET module types by feedback type
+router.get("/type/:feedbackTypeId", async (req, res) => {
+  const { feedbackTypeId } = req.params;
+
+  if (!feedbackTypeId) {
+    return res.status(400).json(utils.createError("Feedback Type ID is required"));
+  }
+
+  try {
+    const query = `
+      SELECT feedbackmoduletype_id, fbmoduletypename, feedbacktype_id
+      FROM FeedbackModuleType
+      WHERE feedbacktype_id = ?
+    `;
+    const [rows] = await db.execute(query, [feedbackTypeId]);
+
+    if (rows.length === 0) {
+      return res.json(utils.createError("No module types found for this feedback type"));
+    }
+
+    return res.json(utils.createSuccess(rows));
+  } catch (err) {
+    console.error("Error fetching module types:", err);
+    return res.status(500).json(utils.createError("Server error while fetching module types"));
+  }
+});
+
+
+
 module.exports = router

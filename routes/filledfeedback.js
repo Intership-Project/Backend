@@ -529,6 +529,260 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /filledfeedback/stats/:course_id
+router.get('/stats/:course_id', async (req, res) => {
+  const { course_id } = req.params;
+  try {
+    const [[stats]] = await db.execute(`
+      SELECT 
+        COUNT(*) AS totalFeedback,
+        SUM(CASE WHEN rating IS NULL OR rating = 0 THEN 1 ELSE 0 END) AS pendingReview,
+        SUM(CASE WHEN rating > 0 THEN 1 ELSE 0 END) AS facultyFeedbackAdded
+      FROM FilledFeedback AS FF
+      INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
+      WHERE SF.course_id = ?
+    `, [course_id]);
+
+    res.send(utils.createSuccess(stats));
+  } catch (err) {
+    res.send(utils.createError(err.message || err));
+  }
+});
+
+
+
+// GET /filledfeedback/recent/:course_id
+router.get('/recent/:course_id', async (req, res) => {
+  const { course_id } = req.params;
+  try {
+    const [rows] = await db.execute(`
+    SELECT 
+    FF.filledfeedbacks_id,
+    S.studentname,
+    F.facultyname,
+    Sub.subjectname,
+    FMT.fbmoduletypename AS module,   
+    FT.fbtypename AS type,          
+    SF.StartDate,
+    SF.EndDate,
+    FF.rating,
+    FF.comments,
+     FF.review_status AS status
+FROM FilledFeedback AS FF
+INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
+INNER JOIN Student AS S ON FF.student_id = S.student_id
+INNER JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
+INNER JOIN Subject AS Sub ON SF.subject_id = Sub.subject_id
+LEFT JOIN FeedbackModuleType AS FMT ON SF.feedbackmoduletype_id = FMT.feedbackmoduletype_id
+LEFT JOIN FeedbackType AS FT ON SF.feedbacktype_id = FT.feedbacktype_id
+WHERE SF.course_id = ?
+ORDER BY FF.filledfeedbacks_id DESC
+LIMIT 3;
+    `, [course_id]);
+
+    res.send(utils.createSuccess(rows));
+  } catch (err) {
+    res.send(utils.createError(err.message || err));
+  }
+});
+
+
+
+// PUT /filledfeedback/:id/status
+router.put("/:id/status", async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    await db.execute(
+      "UPDATE FilledFeedback SET review_status = ? WHERE filledfeedbacks_id = ?",
+      [status, id]
+    );
+    res.send({ status: "success", message: "Status updated" });
+  } catch (err) {
+    res.send({ status: "error", error: err.message });
+  }
+});
+
+
+
+
+
+
+//  Get all feedbacks for a course with responses (CC view)
+router.get("/course/:courseId/grouped",  async (req, res) => {
+  const { courseId } = req.params;
+  const user = req.data; // decoded JWT payload
+
+  try {
+
+    if (user.rolename !== "Course Coordinator" || user.course_id != courseId) {
+      return res.status(403).send(utils.createError("Access denied"));
+    }
+
+    // Get all schedules for this course
+    const [schedules] = await db.execute(
+      `SELECT 
+        sf.schedulefeedback_id,
+        c.coursename,
+        sub.subjectname,
+        f.facultyname,
+        sf.StartDate,
+        sf.EndDate
+      FROM ScheduleFeedback sf
+      JOIN Course c ON sf.course_id = c.course_id
+      JOIN Subject sub ON sf.subject_id = sub.subject_id
+      JOIN Faculty f ON sf.faculty_id = f.faculty_id
+      WHERE sf.course_id = ?
+      ORDER BY sf.StartDate DESC
+      `,
+      [courseId]
+    );
+
+    const groupedFeedbacks = [];
+
+    // For each schedule, get feedbacks and responses
+    for (const schedule of schedules) {
+      const [feedbacks] = await db.execute(
+        `SELECT 
+           f.filledfeedbacks_id,
+           s.studentname,
+           f.comments,
+           f.rating
+         FROM FilledFeedback f
+         JOIN Student s ON f.student_id = s.student_id
+         WHERE f.schedulefeedback_id = ?
+         ORDER BY f.filledfeedbacks_id DESC`,
+        [schedule.schedulefeedback_id]
+      );
+
+      for (const fb of feedbacks) {
+        const [responses] = await db.execute(
+          `SELECT 
+             q.feedbackquestion_id,
+             q.questiontext AS question,
+             fr.response_rating
+           FROM FeedbackResponses fr
+           JOIN FeedbackQuestions q 
+             ON fr.feedbackquestion_id = q.feedbackquestion_id
+           WHERE fr.filledfeedbacks_id = ?
+           ORDER BY q.feedbackquestion_id`,
+          [fb.filledfeedbacks_id]
+        );
+
+        fb.responses = responses;
+      }
+
+      groupedFeedbacks.push({ schedule, feedbacks });
+    }
+
+    res.send(utils.createSuccess(groupedFeedbacks));
+  } catch (err) {
+    console.error(" SQL or server error:", err);
+    res.status(500).send(utils.createError(err.message));
+  }
+});
+
+
+
+// Download all responses PDF for a schedule (CC access)
+router.get("/download/schedule/:scheduleId", async (req, res) => {
+  const { scheduleId } = req.params;
+  const user = req.data; // decoded JWT payload
+
+  try {
+    // Only allow Course Coordinator of this course
+    const [[schedule]] = await db.execute(
+      `SELECT course_id FROM ScheduleFeedback WHERE schedulefeedback_id = ?`,
+      [scheduleId]
+    );
+
+    if (!schedule || user.rolename !== "Course Coordinator" || user.course_id != schedule.course_id) {
+      return res.status(403).send(utils.createError("Access denied"));
+    }
+
+    // Fetch all feedbacks for this schedule
+    const [feedbacks] = await db.execute(
+      `SELECT 
+         f.filledfeedbacks_id,
+         s.studentname,
+         f.comments,
+         f.rating
+       FROM FilledFeedback f
+       JOIN Student s ON f.student_id = s.student_id
+       WHERE f.schedulefeedback_id = ?
+       ORDER BY f.filledfeedbacks_id`,
+      [scheduleId]
+    );
+
+    // Include responses
+    for (const fb of feedbacks) {
+      const [responses] = await db.execute(
+        `SELECT fq.questiontext, fr.response_rating
+         FROM FeedbackResponses fr
+         JOIN FeedbackQuestions fq ON fr.feedbackquestion_id = fq.feedbackquestion_id
+         WHERE fr.filledfeedbacks_id = ?`,
+        [fb.filledfeedbacks_id]
+      );
+      fb.responses = responses;
+    }
+
+    // Generate PDF
+    const PDFDocument = require("pdfkit");
+    const doc = new PDFDocument();
+    let filename = `schedule-${scheduleId}-responses.pdf`;
+    filename = encodeURIComponent(filename);
+
+    res.setHeader("Content-disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-type", "application/pdf");
+
+    doc.pipe(res);
+
+    doc.fontSize(16).text(`Feedback Responses for Schedule ID: ${scheduleId}`, {
+      align: "center",
+    });
+    doc.moveDown();
+
+    feedbacks.forEach((fb) => {
+      doc.fontSize(12).text(`Student: ${fb.studentname}`);
+      doc.text(`Comments: ${fb.comments}`);
+      doc.text(`Rating: ${fb.rating}`);
+      fb.responses.forEach((r, idx) => {
+        doc.text(`Q${idx + 1}: ${r.questiontext}`);
+        doc.text(`Answer: ${r.response_rating}`);
+      });
+      doc.moveDown();
+    });
+
+    doc.end();
+  } catch (err) {
+    console.error("Error generating PDF:", err);
+    res.status(500).send(utils.createError(err.message));
+  }
+});
+
+//GET Responses for a specific FilledFeedback
+router.get('/details/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await db.execute(
+      `SELECT Q.feedbackquestion_id, Q.questiontext, R.response_rating
+       FROM FeedbackResponses R
+       INNER JOIN FeedbackQuestions Q 
+         ON R.feedbackquestion_id = Q.feedbackquestion_id
+       WHERE R.filledfeedbacks_id = ?`,
+      [id]
+    );
+
+    res.send({ status: "success", data: rows });
+  } catch (err) {
+    res.send({ status: "error", error: err.message });
+  }
+});
+
+
+
+
 // ------------------------
 // GET all FilledFeedback
 // ------------------------
@@ -861,3 +1115,6 @@ router.get('/summary/by-faculty-course', async (req, res) => {
 });
 
 module.exports = router;
+
+
+

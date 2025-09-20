@@ -13,155 +13,242 @@ const verifyToken = require('../middlewares/verifyToken');
 
 const router = express.Router();
 
-// REGISTER Faculty with Role
+
+// REGISTER Faculty
 router.post('/register', async (req, res) => {
-    const { facultyname, email, password, role_id } = req.body
+  const { facultyname, email, password, role_id, course_id } = req.body;
+
+  try {
+    if (!facultyname || !email || !password || !role_id) {
+      return res.send(utils.createError("Faculty name, email, password and role are required"));
+    }
+
+    if (role_id == 7 && !course_id) {
+      return res.send(utils.createError("Course selection required for Course Coordinator"));
+    }
+
+    const encryptedPassword = String(cryptoJs.SHA256(password));
+
+    const statement = `
+      INSERT INTO Faculty (facultyname, email, password, role_id, course_id)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    const [result] = await db.execute(statement, [
+      facultyname,
+      email,
+      encryptedPassword,
+      role_id,
+      role_id == 7 ? course_id : null
+    ]);
+
+    res.send(utils.createSuccess({
+      facultyId: result.insertId,
+      facultyname,
+      email,
+      role_id,
+      course_id: role_id == 7 ? course_id : null
+    }));
+  } catch (ex) {
+    res.send(utils.createError(ex));
+  }
+});
 
 
+
+
+
+
+
+// LOGIN Faculty
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    if (!email || !password) {
+      return res.send(utils.createError('Email and password are required'));
+    }
+
+    const [facultyRows] = await db.execute(
+      `SELECT f.faculty_id, f.facultyname, f.email, f.password, f.role_id, f.course_id, r.rolename
+       FROM Faculty f
+       JOIN Role r ON f.role_id = r.role_id
+       WHERE f.email = ?`,
+      [email]
+    );
+
+    if (facultyRows.length === 0) return res.send(utils.createError('Invalid email'));
+
+    const faculty = facultyRows[0];
+    const encryptedPassword = cryptoJs.SHA256(password).toString();
+
+    if (faculty.password !== encryptedPassword) {
+      return res.send(utils.createError('Invalid password'));
+    }
+
+    if (faculty.rolename === 'Course Coordinator' && !faculty.course_id) {
+      return res.send(utils.createError('Course selection required for Course Coordinator'));
+    }
+
+    const token = jwt.sign({
+      faculty_id: faculty.faculty_id,
+      username: faculty.facultyname,
+      email: faculty.email,
+      rolename: faculty.rolename,
+      course_id: faculty.course_id || null
+    }, config.secret, { expiresIn: '1d' });
+
+    res.send(utils.createSuccess({
+      token,
+      faculty_id: faculty.faculty_id,
+      username: faculty.facultyname,
+      email: faculty.email,
+      rolename: faculty.rolename,
+      course_id: faculty.course_id || null
+    }));
+
+  } catch (ex) {
+    console.error('Faculty Login Error:', ex);
+    res.send(utils.createError('Something went wrong during faculty login.'));
+  }
+});
+
+
+//FORGOT PASSWORD (generate token) 
+router.post('/forgotpassword', async (req, res) => {
+    const { email } = req.body;
 
     try {
-        const encryptedPassword = String(cryptoJs.SHA256(password))
 
 
-        // Step 1: Insert into Faculty table with role_id
-        const statement = `
-      INSERT INTO Faculty (facultyname, email, password, role_id)
-      VALUES (?, ?, ?, ?)
-    `
+        const [rows] = await db.execute(`SELECT faculty_id, email FROM Faculty WHERE email = ?`, [email])
+
+        if (rows.length === 0) {
+            return res.send(utils.createError('Faculty not found with this email'))
+        }
+
+        const faculty = rows[0]
+
+        const resetToken = jwt.sign({ faculty_id: faculty.faculty_id, email: faculty.email }, config.secret, { expiresIn: '20m' })
+
+        res.send(utils.createSuccess({ resetToken }))
+    } catch (ex) {
+        console.error("Forgot Password Error:", ex.message);
+        res.send(utils.createError("Something went wrong in forgot password"));
+    }
+})
 
 
-        const [result] = await db.execute(statement, [
+// RESET PASSWORD 
+router.post('/resetpassword', async (req, res) => {
+    const { resetToken, newPassword } = req.body
 
-            facultyname,
-            email,
-            encryptedPassword,
-            role_id
+    try {
+    
+        const decoded = jwt.verify(resetToken, config.secret)
+        const encryptedPassword = cryptoJs.SHA256(newPassword).toString();
 
-        ])
-
-
-        res.send(
-
-            utils.createSuccess({
-                facultyId: result.insertId,
-                facultyname,
-                email,
-                role_id
-            })
-
+        await db.execute(
+            `UPDATE Faculty SET password = ? WHERE faculty_id = ?`,
+            [encryptedPassword, decoded.faculty_id]
         )
 
+        res.send(utils.createSuccess('Password reset successfully'))
     } catch (ex) {
-
-        res.send(utils.createError(ex))
+        res.send(utils.createError('Invalid or expired reset token'))
     }
 })
 
 
 
+// Change Password
+router.put('/changepassword', async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  const { faculty_id, rolename } = req.data;
 
-// Faculty Login
+  if (!['Trainer', 'Lab Mentor', 'Course Coordinator'].includes(rolename)) {
+    return res.status(403).send(utils.createError("Only Trainer, Lab Mentor or CC can change password"));
+  }
 
-router.post('/login', async (req, res) => {
-    const { email, password, course_id } = req.body;
+  try {
+    const [rows] = await db.execute(`SELECT password FROM Faculty WHERE faculty_id = ?`, [faculty_id]);
+    if (rows.length === 0) return res.send(utils.createError('Faculty not found'));
 
-    try {
-        if (!email || !password) {
-            return res.send(utils.createError('Email and password are required'));
-        }
+    const oldHash = cryptoJs.SHA256(oldPassword).toString();
+    if (oldHash !== rows[0].password) return res.send(utils.createError('Old password is incorrect'));
 
-        
-        
+    const newHash = cryptoJs.SHA256(newPassword).toString();
+    await db.execute(`UPDATE Faculty SET password = ? WHERE faculty_id = ?`, [newHash, faculty_id]);
 
-        // Check in Faculty 
-        const [facultyRows] = await db.execute(
-            `SELECT f.faculty_id, f.facultyname, f.email,f.password, f.role_id, r.rolename
-             FROM Faculty f
-             JOIN Role r ON f.role_id = r.role_id
-             WHERE f.email = ?`,
-            [email]
-        );
+    res.send(utils.createSuccess('Password changed successfully'));
+  } catch (ex) {
+    res.send(utils.createError("Something went wrong in change-password"));
+  }
+});
 
-        if (facultyRows.length === 0) {
-            return res.send(utils.createError('Invalid email'));
-        }
+// Get all PDF URLs for logged-in faculty (added by CC or Admin)
 
-        const faculty = facultyRows[0];
+router.get("/faculty-feedback", async (req, res) => {
+  const { faculty_id } = req.data;
 
-
-        //  Verify password
-        const encryptedPassword = cryptoJs.SHA256(password).toString();
-        if (faculty.password !== encryptedPassword) {
-            return res.send(utils.createError('Invalid password')); 
-        }
-
-
-
-        // If role is Course Coordinator, course_id must be provided
-        if (faculty.rolename === 'Course Coordinator') {
-            if (!course_id) {
-                return res.send(utils.createError('Course selection required for Course Coordinator'));
-            }
-
-            // Verify course exists
-            const [courseRows] = await db.execute(
-                ` SELECT course_id, coursename FROM Course WHERE course_id = ?`,
-                [course_id]
-            );
-
-            if (courseRows.length === 0) {
-                return res.send(utils.createError('Invalid course selected'));
-            }
-
-             await db.execute(
-                  `UPDATE Faculty SET course_id = ? WHERE faculty_id = ?`,
-                    [course_id, faculty.faculty_id]
+  try {
+    const [feedbackRows] = await db.execute(
+      `SELECT DISTINCT pdf_file 
+       FROM addfeedback 
+       WHERE faculty_id = ? AND pdf_file IS NOT NULL`,
+      [faculty_id]
     );
 
-              faculty.course_id = course_id;
+    if (feedbackRows.length === 0) 
+      return res.send(utils.createError("No feedback found for this faculty"));
 
-        }
-
-
-
-         // Determine role for JWT consistently
-    let roleForJWT = faculty.rolename;
-    if (faculty.rolename === 'Trainer' || faculty.rolename === 'Lab Mentor') {
-      roleForJWT = faculty.rolename;
-    }
-
-
-        // Generate JWT token
-        const token = jwt.sign(
-            {
-                faculty_id: faculty.faculty_id,
-                username: faculty.facultyname,
-                email: faculty.email,
-                rolename: roleForJWT,
-                course_id: faculty.course_id || null
-            },
-            config.secret,
-            { expiresIn: '1d' }
-        );
-
-        // Send success response
-        res.send(utils.createSuccess({
-            token,
-            faculty_id: faculty.faculty_id,
-            username: faculty.facultyname,
-            email: faculty.email,
-            rolename: roleForJWT,
-            course_id: faculty.course_id || null
-        }));
-
-    } catch (ex) {
-        console.error('Faculty Login Error:', ex);
-        res.send(utils.createError('Something went wrong during faculty login.'));
-    }
+    const pdfUrls = feedbackRows.map(f => `${req.protocol}://${req.get('host')}/uploads/feedback_reports/${f.pdf_file}`);
+    res.send(utils.createSuccess(pdfUrls));
+  } catch (ex) {
+    console.error(ex);
+    res.send(utils.createError(ex.message || "Something went wrong"));
+  }
 });
 
 
+// Get Trainers & Lab Mentors
+router.get('/trainers-labs', async (req, res) => {
+  try {
+    const [rows] = await db.execute(`SELECT faculty_id, facultyname, role_id FROM Faculty WHERE role_id IN (6, 1)`);
+    res.send(utils.createSuccess(rows));
+  } catch (err) {
+    res.send(utils.createError(err));
+  }
+});
 
+// Get batches for a faculty
+router.get('/:faculty_id/batches', async (req, res) => {
+  const { faculty_id } = req.params;
+  try {
+    const [rows] = await db.execute(`SELECT role_id, course_id FROM Faculty WHERE faculty_id = ?`, [faculty_id]);
+    if (rows.length === 0) return res.send(utils.createError("Faculty not found"));
+
+    let batches = [];
+    if (rows[0].role_id === 1) {
+      const [batchRows] = await db.execute(`SELECT * FROM Batch WHERE faculty_id = ?`, [faculty_id]);
+      batches = batchRows;
+    }
+
+    res.send(utils.createSuccess({ role_id: rows[0].role_id, course_id: rows[0].course_id, batches }));
+  } catch (err) {
+    res.send(utils.createError(err.message || err));
+  }
+});
+
+
+// Get all faculty
+router.get("/all", async (req, res) => {
+  try {
+    const [rows] = await db.execute(`SELECT faculty_id, facultyname, role_id FROM Faculty`);
+    res.send(utils.createSuccess(rows));
+  } catch (err) {
+    res.send(utils.createError(err.message));
+  }
+});
 
 // GET all Faculties (GET)
 
@@ -173,8 +260,6 @@ router.get('/', async (req, res) => {
         res.send(utils.createError(ex));
     }
 })
-
-
 // GET single Faculty by ID (GET)
 
 router.get('/:faculty_id', async (req, res) => {
@@ -233,8 +318,6 @@ router.put('/profile', async (req, res) => {
 
 
 
-
-
 // DELETE Faculty (DELETE)
 
 router.delete('/:faculty_id', async (req, res) => {
@@ -273,109 +356,6 @@ router.get('/profile/:faculty_id', async (req, res) => {
         res.send(utils.createError(err));
     }
 });
-
-
-
-
-//FORGOT PASSWORD (generate token) 
-router.post('/forgotpassword', async (req, res) => {
-    const { email } = req.body;
-
-    try {
-
-
-        const [rows] = await db.execute(`SELECT faculty_id, email FROM Faculty WHERE email = ?`, [email])
-
-        if (rows.length === 0) {
-            return res.send(utils.createError('Faculty not found with this email'))
-        }
-
-        const faculty = rows[0]
-        // Generate reset token (valid for 15 min)
-        const resetToken = jwt.sign({ faculty_id: faculty.faculty_id, email: faculty.email }, config.secret, { expiresIn: '20m' })
-
-        // Normally we email the resetToken, but for now we’ll just return it in response
-        res.send(utils.createSuccess({ resetToken }))
-    } catch (ex) {
-        console.error("Forgot Password Error:", ex.message);
-        res.send(utils.createError("Something went wrong in forgot password"));
-    }
-})
-
-
-// RESET PASSWORD 
-router.post('/resetpassword', async (req, res) => {
-    const { resetToken, newPassword } = req.body
-
-    try {
-        // Verify token
-        const decoded = jwt.verify(resetToken, config.secret)
-
-        const encryptedPassword = cryptoJs.SHA256(newPassword).toString();
-
-        await db.execute(
-            `UPDATE Faculty SET password = ? WHERE faculty_id = ?`,
-            [encryptedPassword, decoded.faculty_id]
-        )
-
-        res.send(utils.createSuccess('Password reset successfully'))
-    } catch (ex) {
-        res.send(utils.createError('Invalid or expired reset token'))
-    }
-})
-
-
-
-
-//  FACULTY CHANGE PASSWORD 
-
-router.put('/changepassword', async (req, res) => {
-    const { oldPassword, newPassword } = req.body
-    const faculty_id = req.data.faculty_id   // taken from JWT payload
-
-    try {
-        // 1. Get faculty by ID
-        const [rows] = await db.execute(
-            `SELECT password FROM Faculty WHERE faculty_id = ?`,
-            [faculty_id]
-        )
-
-        if (rows.length === 0) {
-            return res.send(utils.createError('Faculty not found'))
-        }
-
-        const faculty = rows[0]
-
-        // 2. Hash old password with CryptoJS (same as stored)
-        const oldHash = cryptoJs.SHA256(oldPassword).toString()
-
-        if (oldHash !== faculty.password) {
-            return res.send(utils.createError('Old password is incorrect'))
-        }
-
-        // 3. Hash new password with CryptoJs
-        const newHash = cryptoJs.SHA256(newPassword).toString()
-
-        // 4. Update password in DB
-        await db.execute(
-            `UPDATE Faculty SET password = ? WHERE faculty_id = ?`,
-            [newHash, faculty_id]
-        )
-
-        res.send(utils.createSuccess('Password changed successfully'))
-    } catch (ex) {
-        console.error("Change password error:", ex)
-        res.send(utils.createError("Something went wrong in change-password"))
-    }
-})
-
-
-
-
-
-
-
-
 
 
 
@@ -427,16 +407,6 @@ router.get('/feedbacks', verifyToken, async (req, res) => {
 
 
 
-
-
-
-
-
-
-
-
-// Faculty Download Specific Feedback Report
-
 //feedbacks/addfeedbackId/download
 router.get('/feedbacks/:id/download', async (req, res) => {
   try {
@@ -486,12 +456,6 @@ router.get('/feedbacks/:id/download', async (req, res) => {
     res.status(500).send(utils.createError("Something went wrong while downloading PDF"));
   }
 });
-
-
-
-
-
-
 
 
 

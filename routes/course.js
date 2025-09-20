@@ -44,6 +44,22 @@ router.get('/', async (req, res) => {
 })
 
 
+// GETAllCourses
+router.get('/courses', async (req, res) => {
+  try {
+    const statement = `
+      SELECT course_id, coursename
+      FROM Course
+    `
+
+    const [rows] = await db.execute(statement)
+    res.send(utils.createSuccess(rows))
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+
 // GET Course by ID
 router.get('/:course_id', async (req, res) => {
     const { course_id } = req.params

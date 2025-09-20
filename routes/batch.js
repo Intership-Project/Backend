@@ -119,6 +119,36 @@ router.get('/course/:course_id', async (req, res) => {
   }
 })
 
+// GET batches assigned to a faculty (by course)
+router.get('/batches/:faculty_id', async (req, res) => {
+  const { faculty_id } = req.params;
+
+  try {
+    // Get faculty's course
+    const [facultyRows] = await db.execute(
+      `SELECT role_id FROM Faculty WHERE faculty_id = ?`,
+      [faculty_id]
+    );
+
+    if (facultyRows.length === 0) return res.send(utils.createError("Faculty not found"));
+
+    const faculty = facultyRows[0];
+
+    let batches = [];
+
+    if (faculty.role_id === 1) { // Lab Mentor
+      // Show all batches
+      [batches] = await db.execute(
+        `SELECT batch_id, batchname FROM Batch`
+      );
+    }
+
+    res.send(utils.createSuccess({ batches, role_id: faculty.role_id }));
+  } catch (err) {
+    console.error(err);
+    res.send(utils.createError("Failed to fetch batches"));
+  }
+});
   
 
 module.exports = router

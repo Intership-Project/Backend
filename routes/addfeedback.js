@@ -3,62 +3,37 @@ const router = express.Router();
 const db = require("../db");
 const utils = require("../utils");
 const upload = require("../middlewares/upload");
+const path = require("path");
+const fs = require("fs");
+const verifyToken = require("../middlewares/verifyToken"); // your token middleware
 
-//  Admin Add Feedback
-router.post("/add", upload.single("pdf_file"), async (req, res) => {
+// ======================= ADD FEEDBACK =======================
+router.post("/", upload.single("pdf_file"), async (req, res) => {
   try {
-    const { id: adminId, username, email } = req.data; // decoded from admin JWT
-
-    if (!adminId) {
-      return res.send(utils.createError("Unauthorized: Only Admin can add feedback"));
-    }
-
-    // Fields from body
     const { course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date } = req.body;
 
     if (!course_id || !subject_id || !faculty_id || !feedbackmoduletype_id || !feedbacktype_id || !date || !req.file) {
       return res.send(utils.createError("All required fields and PDF must be provided"));
     }
 
-    // Ensure faculty exists
-    const [facultyRows] = await db.execute("SELECT * FROM Faculty WHERE faculty_id = ?", [faculty_id]);
-    if (facultyRows.length === 0) {
-      return res.send(utils.createError("Invalid faculty selected"));
-    }
-
-    const facultyRoleId = facultyRows[0].role_id;
-
-    // Lab Mentor → must have batch
-    if (facultyRoleId === 1 && !batch_id) {
-      return res.send(utils.createError("Batch ID is required for Lab Mentor feedback"));
-    }
-
-    // Decide batch
-    let finalBatchId = null;
-    if (facultyRoleId === 1) {
-      finalBatchId = batch_id; // only lab mentor needs batch
-    }
-
-    // Insert into addfeedback
     const [result] = await db.execute(
       `INSERT INTO addfeedback 
         (course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [course_id, finalBatchId, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, req.file.filename]
+      [course_id, batch_id || null, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, req.file.filename]
     );
 
     res.send(
       utils.createSuccess({
         addfeedback_id: result.insertId,
         course_id,
-        batch_id: finalBatchId,
+        batch_id,
         subject_id,
         faculty_id,
         feedbackmoduletype_id,
         feedbacktype_id,
         date,
         pdf_file: req.file.filename,
-        addedBy: "Admin",
       })
     );
   } catch (ex) {
@@ -67,21 +42,24 @@ router.post("/add", upload.single("pdf_file"), async (req, res) => {
   }
 });
 
-//  Get All Feedbacks
-router.get("/all", async (req, res) => {
+// ======================= GET ALL FEEDBACKS =======================
+router.get("/", async (req, res) => {
   try {
     const [rows] = await db.execute(
       `SELECT af.addfeedback_id, af.course_id, c.coursename, 
               af.batch_id, b.batchname,
               af.subject_id, s.subjectname,
               af.faculty_id, f.facultyname,
-              af.feedbackmoduletype_id, af.feedbacktype_id, 
+              af.feedbackmoduletype_id, fmt.fbmoduletypename,
+              af.feedbacktype_id, ft.fbtypename,
               af.date, af.pdf_file, af.created_at
        FROM addfeedback af
-       LEFT JOIN Course c ON af.course_id = c.course_id
+       JOIN Course c ON af.course_id = c.course_id
        LEFT JOIN Batch b ON af.batch_id = b.batch_id
-       LEFT JOIN Subject s ON af.subject_id = s.subject_id
-       LEFT JOIN Faculty f ON af.faculty_id = f.faculty_id
+       JOIN Subject s ON af.subject_id = s.subject_id
+       JOIN Faculty f ON af.faculty_id = f.faculty_id
+       JOIN FeedbackModuleType fmt ON af.feedbackmoduletype_id = fmt.feedbackmoduletype_id
+       JOIN FeedbackType ft ON af.feedbacktype_id = ft.feedbacktype_id
        ORDER BY af.created_at DESC`
     );
 
@@ -92,6 +70,85 @@ router.get("/all", async (req, res) => {
   }
 });
 
+// ======================= UPDATE FEEDBACK =======================
+router.put("/update/:id", upload.single("pdf_file"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date } = req.body;
+
+    const [existing] = await db.execute("SELECT * FROM addfeedback WHERE addfeedback_id = ?", [id]);
+    if (existing.length === 0) {
+      return res.send(utils.createError("Feedback not found"));
+    }
+
+    let pdfFile = existing[0].pdf_file;
+    if (req.file) {
+      if (pdfFile) {
+        const oldPath = path.join(__dirname, "../uploads", pdfFile);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      }
+      pdfFile = req.file.filename;
+    }
+
+    await db.execute(
+      `UPDATE addfeedback 
+       SET course_id = ?, batch_id = ?, subject_id = ?, faculty_id = ?, 
+           feedbackmoduletype_id = ?, feedbacktype_id = ?, date = ?, pdf_file = ?
+       WHERE addfeedback_id = ?`,
+      [
+        course_id || existing[0].course_id,
+        batch_id || existing[0].batch_id,
+        subject_id || existing[0].subject_id,
+        faculty_id || existing[0].faculty_id,
+        feedbackmoduletype_id || existing[0].feedbackmoduletype_id,
+        feedbacktype_id || existing[0].feedbacktype_id,
+        date || existing[0].date,
+        pdfFile,
+        id,
+      ]
+    );
+
+    res.send(utils.createSuccess("Feedback updated successfully"));
+  } catch (ex) {
+    console.error(ex);
+    res.send(utils.createError(ex.message || "Something went wrong"));
+  }
+});
+
+// ======================= DELETE FEEDBACK =======================
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [existing] = await db.execute("SELECT * FROM addfeedback WHERE addfeedback_id = ?", [id]);
+    if (existing.length === 0) {
+      return res.send(utils.createError("Feedback not found"));
+    }
+
+    const pdfFile = existing[0].pdf_file;
+    if (pdfFile) {
+      const filePath = path.join(__dirname, "../uploads", pdfFile);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+
+    await db.execute("DELETE FROM addfeedback WHERE addfeedback_id = ?", [id]);
+
+    res.send(utils.createSuccess("Feedback deleted successfully"));
+  } catch (ex) {
+    console.error(ex);
+    res.send(utils.createError(ex.message || "Something went wrong"));
+  }
+});
 
 
+// Serve PDF with token protection
+router.get("/file/:filename",  (req, res) => {
+  const filePath = path.join(__dirname, "../uploads/feedback_reports", req.params.filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send({ status: "error", error: "File not found" });
+  }
+
+  res.sendFile(filePath);
+});
 module.exports = router;

@@ -20,6 +20,10 @@ app.use(cors());
 app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(
+  '/feedback_reports',
+  express.static(path.join(__dirname, 'uploads', 'feedback_reports'))
+);
 
 // -------------------- JWT Middleware --------------------
 
@@ -31,7 +35,12 @@ const publicUrls = [
     '/student/register',
     '/student/login',
     '/admin/register',
-    '/admin/login'
+    '/admin/login',
+    '/addfeedback/file' ,
+    '/uploads',
+    '/feedback_reports',
+    '/course/courses'
+
 ];
 
 
