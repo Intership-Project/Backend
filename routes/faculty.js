@@ -267,6 +267,19 @@ router.get("/all", async (req, res) => {
 
 
 
+// GET all Faculties (GET)
+
+router.get('/', async (req, res) => {
+    try {
+        const [rows] = await db.execute('SELECT f.faculty_id, f.facultyname, f.email, r.rolename FROM Faculty f JOIN Role r ON f.role_id = r.role_id');
+        res.send(utils.createSuccess(rows));
+    } catch (ex) {
+        res.send(utils.createError(ex));
+    }
+})
+
+
+
 // Get single faculty by ID
 router.get('/:faculty_id', async (req, res) => {
   try {
@@ -333,5 +346,23 @@ router.get('/feedbacks/:id/download', async (req, res) => {
     res.status(500).send(utils.createError("Something went wrong while downloading PDF"));
   }
 });
+
+// Get faculty by role
+router.get('/role/:roleId', async (req, res) => {
+    const { roleId } = req.params;
+    try {
+        const statement = `
+            SELECT faculty_id, facultyname
+            FROM Faculty
+            WHERE role_id = ?
+        `;
+        const [rows] = await db.execute(statement, [roleId]);
+        res.send(utils.createSuccess(rows));
+    } catch (ex) {
+        res.send(utils.createError(ex));
+    }
+});
+
+
 
 module.exports = router;

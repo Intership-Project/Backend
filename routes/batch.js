@@ -138,4 +138,30 @@ router.get('/batches/:faculty_id', async (req, res) => {
   }
 });
 
+
+
+// GET Batches by Course ID
+router.get('/course/:course_id', async (req, res) => {
+  const { course_id } = req.params
+  try {
+    const statement = `
+      SELECT Batch.batch_id, Batch.batchname, Course.course_id, Course.coursename
+      FROM Batch
+      INNER JOIN Course ON Batch.course_id = Course.course_id
+      WHERE Batch.course_id = ?
+    `
+    const [rows] = await db.execute(statement, [course_id])
+
+    if (rows.length === 0) {
+      res.send(utils.createError('No batches found for this course'))
+    } else {
+      res.send(utils.createSuccess(rows))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+
+
 module.exports = router

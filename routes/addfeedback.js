@@ -77,6 +77,36 @@ router.post('/', upload.single("pdf_file"), async (req, res) => {
 });
 
 
+router.get("/", async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT af.addfeedback_id, af.course_id, c.coursename, 
+              af.batch_id, b.batchname,
+              af.subject_id, s.subjectname,
+              af.faculty_id, f.facultyname,
+              af.feedbackmoduletype_id, fmt.fbmoduletypename,
+              af.feedbacktype_id, ft.fbtypename,
+              af.date, af.pdf_file, af.created_at
+       FROM addfeedback af
+       JOIN Course c ON af.course_id = c.course_id
+       LEFT JOIN Batch b ON af.batch_id = b.batch_id
+       JOIN Subject s ON af.subject_id = s.subject_id
+       JOIN Faculty f ON af.faculty_id = f.faculty_id
+       JOIN FeedbackModuleType fmt ON af.feedbackmoduletype_id = fmt.feedbackmoduletype_id
+       JOIN FeedbackType ft ON af.feedbacktype_id = ft.feedbacktype_id
+       ORDER BY af.created_at DESC`
+    );
+
+    res.send(utils.createSuccess(rows));
+  } catch (ex) {
+    console.error(ex);
+    res.send(utils.createError(ex.message || "Something went wrong"));
+  }
+});
+
+
+
+
 
 //  Get all feedbacks
 router.get('/', async (req, res) => {

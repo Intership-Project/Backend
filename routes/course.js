@@ -28,6 +28,26 @@ router.post('/', async (req, res) => {
 })
 
 
+
+
+
+
+// GETAllCourses
+router.get('/', async (req, res) => {
+  try {
+    const statement = `
+      SELECT course_id, coursename
+      FROM Course
+    `
+
+    const [rows] = await db.execute(statement)
+    res.send(utils.createSuccess(rows))
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+
 // GETAllCourses
 router.get('/courses', async (req, res) => {
   try {
@@ -63,6 +83,9 @@ router.get('/:course_id', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
+
+
+
 
 // UPDATE Course by ID
 router.put('/:course_id', async (req, res) => {

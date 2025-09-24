@@ -129,6 +129,9 @@ router.put('/:subject_id', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
+
+
+//DELETE Subject
 router.delete('/:subject_id', async (req, res) => {
   const { subject_id } = req.params
   try {

@@ -130,5 +130,30 @@ router.get("/type/:feedbackTypeId", async (req, res) => {
 
 
 
+// Get feedback module by feedback type
+router.get('/feedbacktype/:feedbacktype_id', async (req, res) => {
+    const { feedbacktype_id } = req.params; // exact param name
+    try {
+        if (!feedbacktype_id) {
+            return res.send(utils.createError("feedbacktype_id is required"));
+        }
+
+        const statement = `
+            SELECT feedbackmoduletype_id, fbmoduletypename
+            FROM FeedbackModuleType
+            WHERE feedbacktype_id = ?
+        `;
+        const [rows] = await db.execute(statement, [feedbacktype_id]);
+
+        res.send(utils.createSuccess(rows));
+    } catch (ex) {
+        console.error("Error fetching feedback modules:", ex); // log full error
+        res.send(utils.createError(ex.message || "Something went wrong"));
+    }
+});
+
+
+
+
 
 module.exports = router
