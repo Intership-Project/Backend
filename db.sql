@@ -145,38 +145,42 @@ CREATE TABLE FeedbackQuestions (
 -- 12. ScheduleFeedback Table
 
 
-
 CREATE TABLE ScheduleFeedback (
     schedulefeedback_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
     course_id INT NOT NULL,
     subject_id INT NOT NULL,
     faculty_id INT NOT NULL,
-    batch_id INT NOT NULL,
+    batch_id INT DEFAULT NULL,
     feedbacktype_id INT NOT NULL,
     StartDate DATE NOT NULL,
     EndDate DATE NOT NULL,
-    feedbackmoduletype_id INT,
+    feedbackmoduletype_id INT DEFAULT NULL,
+    status ENUM('active','inactive') NOT NULL DEFAULT 'inactive',
     FOREIGN KEY (course_id) REFERENCES course(course_id),
     FOREIGN KEY (subject_id) REFERENCES subject(subject_id),
     FOREIGN KEY (faculty_id) REFERENCES faculty(faculty_id),
     FOREIGN KEY (batch_id) REFERENCES batch(batch_id),
     FOREIGN KEY (feedbacktype_id) REFERENCES FeedbackType(feedbacktype_id),
     FOREIGN KEY (feedbackmoduletype_id) REFERENCES FeedbackModuleType(feedbackmoduletype_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 
 
 -- 13. FilledFeedback Table
-
 
 CREATE TABLE filledfeedback (
     filledfeedbacks_id INT NOT NULL AUTO_INCREMENT,
     student_id INT NOT NULL,
     schedulefeedback_id INT NOT NULL,
-    comments TEXT NULL,
-    rating INT NULL,
+    comments TEXT DEFAULT NULL,
+    rating INT DEFAULT NULL,
+    review_status VARCHAR(20) NOT NULL DEFAULT 'Pending',
     PRIMARY KEY (filledfeedbacks_id),
     KEY student_id (student_id),
-    KEY schedulefeedback_id (schedulefeedback_id)
+    KEY schedulefeedback_id (schedulefeedback_id),
+    FOREIGN KEY (student_id) REFERENCES student(student_id),
+    FOREIGN KEY (schedulefeedback_id) REFERENCES schedulefeedback(schedulefeedback_id)
+
 );
 
 
@@ -193,19 +197,27 @@ CREATE TABLE feedbackresponses (
 
 -- 15. AddFeedback Table
 
-
 CREATE TABLE addfeedback (
     addfeedback_id INT NOT NULL AUTO_INCREMENT,
     course_id INT NOT NULL,
-    batch_id INT NULL,
+    batch_id INT DEFAULT NULL,
     subject_id INT NOT NULL,
     faculty_id INT NOT NULL,
     feedbackmoduletype_id INT NOT NULL,
     feedbacktype_id INT NOT NULL,
     date DATE NOT NULL,
-    pdf_file VARCHAR(255),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (addfeedback_id)
+    pdf_file VARCHAR(255) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    added_by_role ENUM('Admin','CC') NOT NULL,
+    added_by_id INT DEFAULT NULL,
+    PRIMARY KEY (addfeedback_id),
+    FOREIGN KEY (course_id) REFERENCES course(course_id),
+    FOREIGN KEY (batch_id) REFERENCES batch(batch_id),
+    FOREIGN KEY (subject_id) REFERENCES subject(subject_id),
+    FOREIGN KEY (faculty_id) REFERENCES faculty(faculty_id),
+    FOREIGN KEY (feedbackmoduletype_id) REFERENCES feedbackmoduletype(feedbackmoduletype_id),
+    FOREIGN KEY (feedbacktype_id) REFERENCES feedbacktype(feedbacktype_id)
+
 );
 
 
