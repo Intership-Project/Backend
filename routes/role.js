@@ -5,7 +5,6 @@ const utils = require('../utils')
 
 
 // REGISTER Role
-
 router.post('/register', async (request, response) => {
   const { rolename } = request.body
 
@@ -29,6 +28,8 @@ router.post('/register', async (request, response) => {
     response.send(utils.createError(ex))
   }
 })
+
+
 // GET All Roles
 router.get('/', async (request, response) => {
     try {
@@ -44,6 +45,8 @@ router.get('/', async (request, response) => {
       response.send(utils.createError(ex))
     }
   })
+
+  
   // GET Role by ID
 router.get('/:id', async (request, response) => {
     const { id } = request.params
@@ -66,6 +69,8 @@ router.get('/:id', async (request, response) => {
       response.send(utils.createError(ex))
     }
   })
+
+  
 
   //delete role by id
   router.delete('/:id', async (request, response) => {

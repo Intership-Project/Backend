@@ -4,8 +4,8 @@ const db = require('../db')
 const utils = require('../utils')
 
 
+//Admin
 // CREATE Batch
-
 router.post('/', async (req, res) => {
   const { batchname, course_id } = req.body
 
@@ -28,10 +28,14 @@ router.post('/', async (req, res) => {
   }
 })
 
+
+//Admin
 // GET All Batches (with Course name)
 router.get('/', async (req, res) => {
   try {
-    const statement = `SELECT Batch.batch_id,Batch.batchname,Course.course_id,Course.coursename FROM Batch INNER JOIN Course ON Batch.course_id = Course.course_id;`
+    const statement = `SELECT Batch.batch_id,Batch.batchname,Course.course_id,
+                      Course.coursename FROM Batch INNER JOIN Course ON 
+                      Batch.course_id = Course.course_id;`
 
     const [rows] = await db.execute(statement)
     res.send(utils.createSuccess(rows))
@@ -61,7 +65,7 @@ router.get('/:batch_id', async (req, res) => {
 
 
 
-// UPDATE Batch
+// UPDATE Batch (Admin)
 router.put('/:batch_id', async (req, res) => {
   const { batch_id } = req.params
   const { batchname, course_id } = req.body
@@ -86,7 +90,7 @@ router.put('/:batch_id', async (req, res) => {
 
 
 
-// DELETE Batch
+// DELETE Batch (Admin)
 router.delete('/:batch_id', async (req, res) => {
   const { batch_id } = req.params
   try {
@@ -107,6 +111,8 @@ router.delete('/:batch_id', async (req, res) => {
 })
 
 
+
+//addfacultyfeedback
 // GET batches assigned to a faculty (by course)
 router.get('/batches/:faculty_id', async (req, res) => {
   const { faculty_id } = req.params;
@@ -139,7 +145,7 @@ router.get('/batches/:faculty_id', async (req, res) => {
 });
 
 
-
+//Admin-schedulefeedbackform and addfeedback
 // GET Batches by Course ID
 router.get('/course/:course_id', async (req, res) => {
   const { course_id } = req.params
@@ -161,7 +167,6 @@ router.get('/course/:course_id', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
-
 
 
 module.exports = router

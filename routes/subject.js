@@ -5,7 +5,7 @@ const utils = require('../utils')
 
 
 
-// CREATE Subject
+// CREATE Subject(Admin)
 router.post('/', async (req, res) => {
   const { subjectname, course_id } = req.body
 
@@ -30,25 +30,26 @@ router.post('/', async (req, res) => {
 
 
 
-// GET subjects by course_id
+// GET subjects by course_id 
+//addfacultyfeedback for cc and scheduleform for Admin and admin addfeedback
 router.get('/course/:course_id', async (req, res) => {
   const { course_id } = req.params;
   try {
     const [rows] = await db.execute(
-      `SELECT subject_id, subjectname FROM Subject WHERE course_id = ?`,
+      ` SELECT * FROM subject WHERE course_id = ?`,
       [course_id]
     );
-    if (rows.length === 0) {
-      return res.send(utils.createError('No subjects found for this course'));
-    }
-    res.send(utils.createSuccess(rows));
-  } catch (ex) {
-    res.send(utils.createError(ex.message || ex));
+   res.json({ status: "success", data: rows });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "error", error: "Internal Server Error" });
   }
 });
 
 
 
+
+//Admin
 // GET All Subjects (with Course info)
 router.get('/', async (req, res) => {
   try {
@@ -103,7 +104,7 @@ router.get('/:subject_id', async (req, res) => {
 
 
 
-// UPDATE Subject
+// UPDATE Subject(Admin)
 router.put('/:subject_id', async (req, res) => {
   const { subject_id } = req.params
   const { subjectname, course_id } = req.body
@@ -131,7 +132,7 @@ router.put('/:subject_id', async (req, res) => {
 })
 
 
-//DELETE Subject
+//DELETE Subject(Admin)
 router.delete('/:subject_id', async (req, res) => {
   const { subject_id } = req.params
   try {
@@ -147,7 +148,7 @@ router.delete('/:subject_id', async (req, res) => {
       res.send(utils.createSuccess(`Subject with id ${subject_id} deleted`))
     }
   } catch (ex) {
-    // catches MySQL foreign key errors too
+   
     res.send(utils.createError(ex))
   }
 })

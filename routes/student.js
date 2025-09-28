@@ -6,7 +6,8 @@ const cryptoJs = require('crypto-js');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
 
-// -------------------- REGISTER --------------------
+
+// REGISTER (student also Admin)
 router.post('/register', async (req, res) => {
   const { studentname, email, password, course_id, batch_id } = req.body;
 
@@ -46,7 +47,9 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// -------------------- LOGIN --------------------
+
+
+// LOGIN
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -93,7 +96,10 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// -------------------- FORGOT PASSWORD --------------------
+
+
+
+// FORGOT PASSWORD (by student)
 router.post('/forgotpassword', async (req, res) => {
   const { email } = req.body;
 
@@ -104,7 +110,7 @@ router.post('/forgotpassword', async (req, res) => {
     const student = rows[0];
     const resetToken = jwt.sign({ student_id: student.student_id, email: student.email }, config.secret, { expiresIn: '20m' });
 
-    // In production, send token via email
+    
     res.send(utils.createSuccess({ resetToken }));
   } catch (ex) {
     console.error('Forgot Password Error:', ex.message);
@@ -112,7 +118,9 @@ router.post('/forgotpassword', async (req, res) => {
   }
 });
 
-// -------------------- RESET PASSWORD --------------------
+
+
+// RESET PASSWORD (by student)
 router.post('/resetpassword', async (req, res) => {
   const { resetToken, newPassword } = req.body;
 
@@ -128,7 +136,8 @@ router.post('/resetpassword', async (req, res) => {
   }
 });
 
-// -------------------- UPDATE STUDENT --------------------
+
+//UPDATE STUDENT (by Admin)
 router.put('/update/:id', async (req, res) => {
   const student_id = req.params.id;
   const { studentname, email, password, course_id, batch_id } = req.body;
@@ -156,22 +165,33 @@ router.put('/update/:id', async (req, res) => {
   }
 });
 
-// -------------------- DELETE STUDENT --------------------
+
+
+// DELETE STUDENT (by Admin)
 router.delete('/delete/:id', async (req, res) => {
-  const student_id = req.params.id;
+  const { id } = req.params;
 
   try {
-    const [result] = await db.execute('DELETE FROM student WHERE student_id = ?', [student_id]);
-    if (result.affectedRows === 0) return res.status(404).json({ message: 'Student not found' });
+    const [result] = await db.execute(
+      'DELETE FROM student WHERE student_id = ?',
+      [id]
+    );
 
-    res.json({ message: 'Student deleted successfully' });
-  } catch (ex) {
-    console.error(ex);
-    res.status(500).json({ error: 'Internal Server Error' });
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    return res.status(200).json({ message: 'Student deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting student:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// -------------------- GET ALL STUDENTS --------------------
+
+
+
+// GET ALL STUDENTS (byAdmin)
 router.get('/getall', async (req, res) => {
   try {
     const [result] = await db.execute('SELECT student_id, studentname, email, course_id, batch_id FROM student');
@@ -181,5 +201,7 @@ router.get('/getall', async (req, res) => {
     res.send(utils.createError(ex));
   }
 });
+
+
 
 module.exports = router;

@@ -8,147 +8,7 @@ const verifyToken = require('../middlewares/verifyToken');
 
 
 
-
-// GET /coursecordinator/feedbacks
-router.get("/feedbacks", verifyToken, async (req, res) => {
-  try {
-    console.log("JWT payload (coursecordinator/feedbacks):", req.data);
-
-    const role = req.data?.rolename;
-    const course_id = req.data?.course_id;
-
-    if (role !== "Course Coordinator") {
-      return res.send(utils.createError("Not a Course Coordinator"));
-    }
-    if (!course_id) {
-      return res.send(utils.createError("Course ID missing in token"));
-    }
-
-    const query = `
-      SELECT 
-        ff.filledfeedbacks_id,
-        ff.comments,
-        ff.rating,
-        s.studentname,
-        ff.student_id, 
-        f.facultyname AS faculty_name,
-        f.faculty_id,
-        sf.schedulefeedback_id,
-        sf.course_id,
-        C.coursename,   -- take coursename directly from DB
-        sub.subjectname AS subject_name,
-        sf.feedbackmoduletype_id,
-        fmt.fbmoduletypename AS module_name,
-        ft.fbtypename AS feedback_type,
-        sf.StartDate AS start_date,
-        sf.EndDate AS end_date
-      FROM filledfeedback ff
-      JOIN student s ON ff.student_id = s.student_id
-      JOIN schedulefeedback sf ON ff.schedulefeedback_id = sf.schedulefeedback_id
-      JOIN course C ON sf.course_id = C.course_id   -- this ensures correct course name
-      JOIN faculty f ON sf.faculty_id = f.faculty_id
-      JOIN subject sub ON sf.subject_id = sub.subject_id
-      LEFT JOIN feedbackmoduletype fmt ON sf.feedbackmoduletype_id = fmt.feedbackmoduletype_id
-      LEFT JOIN feedbacktype ft ON sf.feedbacktype_id = ft.feedbacktype_id
-      WHERE sf.course_id = ? 
-      ORDER BY ff.filledfeedbacks_id DESC;
-    `;
-
-    const [rows] = await db.execute(query, [course_id]);
-
-    if (!rows || rows.length === 0) {
-      return res.send(utils.createError("No feedbacks found for your course"));
-    }
-
-    
-    return res.send(utils.createSuccess(rows));
-  } catch (err) {
-    console.error("Error fetching feedbacks:", err);
-    return res.send(utils.createError(err.message || "Something went wrong while fetching feedbacks"));
-  }
-});
-
-
-
-
-
-// Download a single FilledFeedback PDF by ID
-router.get('/download/:filledfeedbacks_id', async (req, res) => {
-  const { filledfeedbacks_id } = req.params;
-
-  try {
-    // Fetch feedback details
-    const [feedbackRows] = await db.execute(`
-      SELECT
-        FF.filledfeedbacks_id,
-        FF.schedulefeedback_id,
-        FF.comments,
-        FF.rating,
-        S.studentname,
-        C.coursename,
-        Sub.subjectname,
-        F.facultyname,
-        SF.StartDate,
-        SF.EndDate
-      FROM FilledFeedback AS FF
-      INNER JOIN Student AS S ON FF.student_id = S.student_id
-      INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
-      INNER JOIN Course AS C ON SF.course_id = C.course_id
-      INNER JOIN Subject AS Sub ON SF.subject_id = Sub.subject_id
-      INNER JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
-      WHERE FF.filledfeedbacks_id = ?
-    `, [filledfeedbacks_id]);
-
-    if (feedbackRows.length === 0) return res.status(404).send('Feedback not found');
-
-    const feedback = feedbackRows[0];
-
-    // Fetch all responses for this feedback
-    const [responses] = await db.execute(`
-      SELECT FQ.questiontext, FR.response_rating
-      FROM FeedbackResponses FR
-      INNER JOIN FeedbackQuestions FQ ON FR.feedbackquestion_id = FQ.feedbackquestion_id
-      WHERE FR.filledfeedbacks_id = ?
-    `, [filledfeedbacks_id]);
-
-    const PDFDocument = require('pdfkit');
-    const doc = new PDFDocument({ margin: 40 });
-
-    res.setHeader('Content-Disposition', `attachment; filename=filledfeedback-${filledfeedbacks_id}.pdf`);
-    res.setHeader('Content-Type', 'application/pdf');
-
-    doc.pipe(res);
-
-    // PDF content
-    doc.fontSize(20).text(`Feedback ID: ${feedback.filledfeedbacks_id}`, { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(14).text(`Student: ${feedback.studentname}`);
-    doc.text(`Course: ${feedback.coursename}`);
-    doc.text(`Subject: ${feedback.subjectname}`);
-    doc.text(`Faculty: ${feedback.facultyname}`);
-    doc.text(`Schedule: ${feedback.StartDate} - ${feedback.EndDate}`);
-    doc.text(`ScheduleFeedback ID: ${feedback.schedulefeedback_id}`);
-    doc.text(`Overall Rating: ${feedback.rating}`);
-    doc.text(`Comments: ${feedback.comments || '-'}`);
-    doc.moveDown();
-
-    responses.forEach((r, i) => {
-      doc.text(`Q${i + 1}: ${r.questiontext}`);
-      doc.text(`   Response: ${r.response_rating}`);
-    });
-
-    doc.end();
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Error generating PDF');
-  }
-});
-
-
-
-
-
+//addfacultyfeedback
 // Add new feedback by CC
 router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
   try {
@@ -272,6 +132,11 @@ router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
 
 
 
+
+
+
+
+//homecc and addfacultyfeedback 
 // GET CC assigned course by CC id
 router.get('/my-course', async (req, res) => {
   const ccId = req.data.faculty_id; // from token

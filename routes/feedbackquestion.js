@@ -5,6 +5,7 @@ const utils = require('../utils')
 
 
 
+//Admin
 // CREATE FeedbackQuestion
 router.post('/', async (req, res) => {
   const { questiontext, feedbacktype_id } = req.body
@@ -33,7 +34,7 @@ router.post('/', async (req, res) => {
 
 
 
-
+//Admin
 // GET All FeedbackQuestions
 router.get('/', async (req, res) => {
 
@@ -78,6 +79,7 @@ router.get('/:feedbackquestion_id', async (req, res) => {
 
 
 
+//Admin
 // UPDATE FeedbackQuestion
 router.put('/:feedbackquestion_id', async (req, res) => {
 
@@ -132,6 +134,30 @@ router.get('/feedbacktype/:feedbacktype_id', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
+
+
+// DELETE FeedbackQuestion
+router.delete('/:feedbackquestion_id', async (req, res) => {
+  const { feedbackquestion_id } = req.params
+
+  try {
+    const statement = `
+      DELETE FROM FeedbackQuestions
+      WHERE feedbackquestion_id = ?
+    `
+    const [result] = await db.execute(statement, [feedbackquestion_id])
+
+    if (result.affectedRows === 0) {
+      res.send(utils.createError('FeedbackQuestion not found'))
+    } else {
+      res.send(utils.createSuccess(`FeedbackQuestion with id ${feedbackquestion_id} deleted`))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+
 
 
   

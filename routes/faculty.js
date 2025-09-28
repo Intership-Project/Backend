@@ -7,12 +7,11 @@ const config = require('../config');
 const path = require('path');
 const fs = require('fs');
 const verifyToken = require('../middlewares/verifyToken');
-
 const router = express.Router();
 
 
 
-// REGISTER Faculty
+// REGISTER Faculty (Faculty and Add faculty by Admin)
 router.post('/register', async (req, res) => {
   const { facultyname, email, password, role_id, course_id } = req.body;
 
@@ -166,7 +165,7 @@ router.put('/profile', async (req, res) => {
 
 
 
-// Change Password
+//ChangePassword
 router.put('/changepassword', async (req, res) => {
   const { oldPassword, newPassword } = req.body;
   const { faculty_id, rolename } = req.data;
@@ -194,9 +193,8 @@ router.put('/changepassword', async (req, res) => {
 
 
 
-
+//homefaculty
 // Get all PDF URLs for logged-in faculty (added by CC or Admin)
-
 router.get("/faculty-feedback", async (req, res) => {
   const { faculty_id } = req.data;
 
@@ -221,8 +219,8 @@ router.get("/faculty-feedback", async (req, res) => {
 
 
 
-
-// Get Trainers & Lab Mentors
+//addfacultyfeedback
+// Get only Trainers & Lab Mentors Faculties
 router.get('/trainers-labs', async (req, res) => {
   try {
     const [rows] = await db.execute(`SELECT faculty_id, facultyname, role_id FROM faculty WHERE role_id IN (1, 2)`);
@@ -234,41 +232,41 @@ router.get('/trainers-labs', async (req, res) => {
 
 
 
-// Get batches for a faculty
-router.get('/:faculty_id/batches', async (req, res) => {
-  const { faculty_id } = req.params;
-  try {
-    const [rows] = await db.execute(`SELECT role_id, course_id FROM faculty WHERE faculty_id = ?`, [faculty_id]);
-    if (rows.length === 0) return res.send(utils.createError("Faculty not found"));
+// // Get batches for a faculty
+// router.get('/:faculty_id/batches', async (req, res) => {
+//   const { faculty_id } = req.params;
+//   try {
+//     const [rows] = await db.execute(`SELECT role_id, course_id FROM faculty WHERE faculty_id = ?`, [faculty_id]);
+//     if (rows.length === 0) return res.send(utils.createError("Faculty not found"));
 
-    let batches = [];
-    if (rows[0].role_id === 1) {
-      const [batchRows] = await db.execute(`SELECT * FROM batch WHERE faculty_id = ?`, [faculty_id]);
-      batches = batchRows;
-    }
+//     let batches = [];
+//     if (rows[0].role_id === 1) {
+//       const [batchRows] = await db.execute(`SELECT * FROM batch WHERE faculty_id = ?`, [faculty_id]);
+//       batches = batchRows;
+//     }
 
-    res.send(utils.createSuccess({ role_id: rows[0].role_id, course_id: rows[0].course_id, batches }));
-  } catch (err) {
-    res.send(utils.createError(err.message || err));
-  }
-});
-
-
-
-// Get all faculty
-router.get("/all", async (req, res) => {
-  try {
-    const [rows] = await db.execute(`SELECT faculty_id, facultyname, role_id FROM faculty`);
-    res.send(utils.createSuccess(rows));
-  } catch (err) {
-    res.send(utils.createError(err.message));
-  }
-});
+//     res.send(utils.createSuccess({ role_id: rows[0].role_id, course_id: rows[0].course_id, batches }));
+//   } catch (err) {
+//     res.send(utils.createError(err.message || err));
+//   }
+// });
 
 
 
-// GET all Faculties (GET)
+// // Get all faculty
+// router.get("/all", async (req, res) => {
+//   try {
+//     const [rows] = await db.execute(`SELECT faculty_id, facultyname, role_id FROM faculty`);
+//     res.send(utils.createSuccess(rows));
+//   } catch (err) {
+//     res.send(utils.createError(err.message));
+//   }
+// });
 
+
+
+// GET all Faculties (Admin)
+//facultylist and addfeedback
 router.get('/', async (req, res) => {
     try {
         const [rows] = await db.execute('SELECT f.faculty_id, f.facultyname, f.email, r.rolename FROM Faculty f JOIN Role r ON f.role_id = r.role_id');
@@ -302,6 +300,8 @@ router.get('/:faculty_id', async (req, res) => {
 
 
 
+
+//facultylist
 // Delete faculty (Admin only)
 router.delete('/:faculty_id', async (req, res) => {
   const { faculty_id } = req.params;
@@ -318,35 +318,7 @@ router.delete('/:faculty_id', async (req, res) => {
 
 
 
-// Download specific feedback PDF
-router.get('/feedbacks/:id/download', async (req, res) => {
-  const { faculty_id, rolename } = req.data;
-  const addfeedback_id = req.params.id;
-
-  if (!['Trainer', 'Lab Mentor'].includes(rolename)) {
-    return res.status(403).send(utils.createError("Access denied"));
-  }
-
-  try {
-    const [rows] = await db.execute(
-      `SELECT pdf_file FROM addfeedback WHERE addfeedback_id = ? AND faculty_id = ? AND pdf_file IS NOT NULL`,
-      [addfeedback_id, faculty_id]
-    );
-
-    if (rows.length === 0) return res.status(404).send(utils.createError("No PDF found for this feedback"));
-
-    const pdfFile = rows[0].pdf_file;
-    const filePath = path.join(process.cwd(), 'uploads/feedback_reports', pdfFile);
-
-    if (!fs.existsSync(filePath)) return res.status(404).send(utils.createError("PDF file not found on server"));
-
-    res.download(filePath, pdfFile);
-  } catch (err) {
-    console.error("Error in download:", err);
-    res.status(500).send(utils.createError("Something went wrong while downloading PDF"));
-  }
-});
-
+//Admin-scheduleform
 // Get faculty by role
 router.get('/role/:roleId', async (req, res) => {
     const { roleId } = req.params;
@@ -363,6 +335,71 @@ router.get('/role/:roleId', async (req, res) => {
     }
 });
 
+
+//facultylist
+//update faculty with role
+router.put('/update/:faculty_id', async (req, res) => {
+    const { faculty_id } = req.params;
+    const { facultyname, email, password, role_id, course_id } = req.body;
+
+    try {
+        let updateFields = [];
+        let updateValues = [];
+
+        // Optional password update
+        if (typeof password !== 'undefined') {
+            const encryptedPassword = String(cryptoJs.SHA256(password));
+            updateFields.push('password = ?');
+            updateValues.push(encryptedPassword);
+        }
+
+        // Optional facultyname update
+        if (typeof facultyname !== 'undefined') {
+            updateFields.push('facultyname = ?');
+            updateValues.push(facultyname);
+        }
+
+        // Optional email update
+        if (typeof email !== 'undefined') {
+            updateFields.push('email = ?');
+            updateValues.push(email);
+        }
+
+        // Optional role_id update
+        if (typeof role_id !== 'undefined') {
+            updateFields.push('role_id = ?');
+            updateValues.push(role_id);
+        }
+
+        // Optional course_id update ONLY for Course Coordinators
+        if (typeof course_id !== 'undefined' && role_id === 7) {
+            updateFields.push('course_id = ?');
+            updateValues.push(course_id);
+        }
+
+        if (updateFields.length === 0) {
+            return res.status(400).send(utils.createError('No fields to update'));
+        }
+
+        const statement = `
+            UPDATE Faculty
+            SET ${updateFields.join(', ')}
+            WHERE faculty_id = ?
+        `;
+
+        updateValues.push(faculty_id);
+
+        const [result] = await db.execute(statement, updateValues);
+
+        res.send(utils.createSuccess({
+            message: 'Faculty updated successfully',
+            updatedFacultyId: faculty_id
+        }));
+
+    } catch (ex) {
+        res.send(utils.createError(ex));
+    }
+});
 
 
 module.exports = router;

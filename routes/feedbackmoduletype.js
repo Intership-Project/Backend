@@ -100,8 +100,8 @@ router.delete('/:feedbackmoduletype_id', async (req, res) => {
   })
   
 
-
-  // GET module types by feedback type
+//addfacultyfeedback fetch moduletype for selected feedback type
+// GET module types by feedback type
 router.get("/type/:feedbackTypeId", async (req, res) => {
   const { feedbackTypeId } = req.params;
 
@@ -127,32 +127,6 @@ router.get("/type/:feedbackTypeId", async (req, res) => {
     return res.status(500).json(utils.createError("Server error while fetching module types"));
   }
 });
-
-
-
-// Get feedback module by feedback type
-router.get('/feedbacktype/:feedbacktype_id', async (req, res) => {
-    const { feedbacktype_id } = req.params; // exact param name
-    try {
-        if (!feedbacktype_id) {
-            return res.send(utils.createError("feedbacktype_id is required"));
-        }
-
-        const statement = `
-            SELECT feedbackmoduletype_id, fbmoduletypename
-            FROM FeedbackModuleType
-            WHERE feedbacktype_id = ?
-        `;
-        const [rows] = await db.execute(statement, [feedbacktype_id]);
-
-        res.send(utils.createSuccess(rows));
-    } catch (ex) {
-        console.error("Error fetching feedback modules:", ex); // log full error
-        res.send(utils.createError(ex.message || "Something went wrong"));
-    }
-});
-
-
 
 
 

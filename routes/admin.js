@@ -6,6 +6,9 @@ const cryptoJs = require('crypto-js')
 const jwt = require('jsonwebtoken')
 const config = require('../config')
 
+
+
+
 // REGISTER Admin
 router.post('/register', async (req, res) => {
   const { username, email, password } = req.body
@@ -18,8 +21,6 @@ router.post('/register', async (req, res) => {
   try {
     // encrypt password
     const encryptedPassword = String(cryptoJs.SHA256(password))
-
-    // insert into Admin table
 
     const statement = `INSERT INTO Admin (username, password, email) VALUES (?, ?, ?)`
     const [result] = await db.execute(statement, [username, encryptedPassword, email])
@@ -47,7 +48,7 @@ router.post('/login', async (req, res) => {
     return res.send(utils.createError('Email and password are required'))
   }
  try {
-    // Step 1: Check if email exists
+    // Check if email exists
     const [emailRows] = await db.execute(
       `SELECT id, username, email, password FROM Admin WHERE email = ?`,
       [email]
@@ -59,13 +60,13 @@ router.post('/login', async (req, res) => {
 
     const admin = emailRows[0]
 
-    // Step 2: Encrypt and check password
+    //Encrypt and check password
     const encryptedPassword = String(cryptoJs.SHA256(password))
     if (admin.password !== encryptedPassword) {
       return res.send(utils.createError('Invalid password'))
     }
 
-    // Step 3: Create JWT token
+    //Created JWT token
     const token = jwt.sign(
       {
         id: admin.id,
@@ -113,8 +114,7 @@ router.post('/forgotpassword', async (req, res) => {
       { expiresIn: '20m' }
     );
 
-    // Here you can send email with resetToken using your email service
-    // sendEmail(admin.email, resetToken);
+   
 
     res.send(utils.createSuccess({ resetToken }));
   } catch (ex) {
@@ -152,9 +152,6 @@ router.post("/resetpassword", async (req, res) => {
     res.send(utils.createError("Invalid or expired reset token"));
   }
 });
-
-
-
 
 
 

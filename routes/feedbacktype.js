@@ -53,7 +53,8 @@ router.get('/:feedbacktype_id', async (req, res) => {
   
 
 
-// get all feedbacktypes
+//get all feedbacktypes
+//addfacultyfeedback  and Admin scheduleform and addfeedback fetch feedbacktype for a course
 router.get('/', async (req, res) => {
   try {
     const statement = `
@@ -94,6 +95,9 @@ router.delete('/:feedbacktype_id', async (req, res) => {
     }
   })
 
+
+
+  //get feedbacktype based on courseid
 router.get('/:course_id', async (req, res) => {
   const { course_id } = req.params;
   const statement = `SELECT * FROM FeedbackType WHERE course_id = ?`;

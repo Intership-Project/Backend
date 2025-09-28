@@ -1,11 +1,10 @@
-
 const express = require('express')
 const router = express.Router()
 const db = require('../db')
 const utils = require('../utils')
 
 
-//CREATECourse
+//CREATECourseby Admin
 router.post('/', async (req, res) => {
   const { coursename } = req.body
   try {
@@ -29,10 +28,8 @@ router.post('/', async (req, res) => {
 
 
 
-
-
-
-// GETAllCourses
+//cc register (facultylogin)
+// GETAllCourses (Admin-addfeedback)
 router.get('/', async (req, res) => {
   try {
     const statement = `
@@ -47,21 +44,6 @@ router.get('/', async (req, res) => {
   }
 })
 
-
-// GETAllCourses
-router.get('/courses', async (req, res) => {
-  try {
-    const statement = `
-      SELECT course_id, coursename
-      FROM Course
-    `
-
-    const [rows] = await db.execute(statement)
-    res.send(utils.createSuccess(rows))
-  } catch (ex) {
-    res.send(utils.createError(ex))
-  }
-})
 
 
 // GET Course by ID
@@ -85,9 +67,7 @@ router.get('/:course_id', async (req, res) => {
 })
 
 
-
-
-// UPDATE Course by ID
+// UPDATE Course by ID (by Admin)
 router.put('/:course_id', async (req, res) => {
   const { course_id } = req.params
   const { coursename } = req.body
@@ -110,7 +90,7 @@ router.put('/:course_id', async (req, res) => {
 })
 
 
-// DELETE Course by ID
+// DELETE Course by ID (Admin)
 router.delete('/:course_id', async (req, res) => {
   const { course_id } = req.params
   try {
