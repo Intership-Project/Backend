@@ -138,14 +138,14 @@ router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
 
 //homecc and addfacultyfeedback 
 // GET CC assigned course by CC id
-router.get('/my-course', async (req, res) => {
-  const ccId = req.data.faculty_id; // from token
+router.get('/my-course', verifyToken, async (req, res) => {
   try {
+    const ccId = req.data.faculty_id; // now req.data exists
     const statement = `
       SELECT C.course_id, C.coursename
       FROM faculty F
       LEFT JOIN Course C ON F.course_id = C.course_id
-      WHERE F.faculty_id = ? AND F.role_id = 3  -- 3 = Course Coordinator
+      WHERE F.faculty_id = ? AND F.role_id = 3
     `;
     const [rows] = await db.execute(statement, [ccId]);
     if (rows.length === 0) {
@@ -153,10 +153,10 @@ router.get('/my-course', async (req, res) => {
     }
     res.send(utils.createSuccess(rows[0]));
   } catch (err) {
-    res.send(utils.createError(err.message || err));
+    console.error(err);
+    res.send(utils.createError(err.message || "Something went wrong"));
   }
 });
-
 
 
 module.exports = router;

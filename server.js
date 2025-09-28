@@ -48,7 +48,7 @@ const publicUrls = [
   "/admin/resetpassword",
   '/uploads',
     '/feedback_reports',
-  "/course/courses",
+  "/course",
 ];
 
 // Serve uploaded PDFs and files publicly
