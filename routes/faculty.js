@@ -642,5 +642,34 @@ router.get('/role/:roleId', async (req, res) => {
     }
 });
 
+// GET /faculty/report/all - only Trainer & Lab Mentor
+router.get("/report/all", async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT 
+          fa.faculty_id,
+          fa.facultyname,
+          ROUND(IFNULL(AVG(ff.rating), 0), 2) AS avg_rating,
+          COUNT(ff.filledfeedbacks_id) AS feedback_count
+       FROM Faculty fa
+       LEFT JOIN ScheduleFeedback sf ON fa.faculty_id = sf.faculty_id
+       LEFT JOIN FilledFeedback ff ON sf.schedulefeedback_id = ff.schedulefeedback_id
+       WHERE fa.role_id IN (1, 6)
+       GROUP BY fa.faculty_id, fa.facultyname
+       ORDER BY fa.facultyname`
+    );
+
+    if (rows.length === 0) {
+      return res.send(utils.createError("No Trainer or Lab Mentor found"));
+    }
+
+    res.send(utils.createSuccess(rows));
+  } catch (err) {
+    console.error("Error fetching Trainer & Lab Mentor report:", err);
+    res.status(500).send(utils.createError("Error fetching faculty report"));
+  }
+});
+
+
 
  module.exports = router;
