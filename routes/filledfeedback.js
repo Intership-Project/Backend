@@ -8,69 +8,89 @@ const config = require('../config')
 const PDFDocument = require('pdfkit')
 
 
-
-
-//  POST FilledFeedback with responses
+// POST /filledfeedback
 router.post('/', async (req, res) => {
-  const { student_id, schedulefeedback_id, comments, rating, questionResponses } = req.body
-  let connection
+  const {
+    student_id,
+    course_id,           
+    batch_id,            
+    schedulefeedback_id,
+    comment,             
+    average_rating,      
+    questionResponses
+  } = req.body;
+
+  let connection;
 
   try {
-    connection = await db.getConnection()
-    await connection.beginTransaction()
+    connection = await db.getConnection();
+    await connection.beginTransaction();
 
-    // 1. Insert into FilledFeedback (use rating from request)
+    // Step 1: Insert feedback with given rating
     const insertFeedback = `
       INSERT INTO FilledFeedback (student_id, schedulefeedback_id, comments, rating)
       VALUES (?, ?, ?, ?)
-    `
+    `;
     const [result] = await connection.execute(insertFeedback, [
       student_id ?? null,
       schedulefeedback_id ?? null,
-      comments ?? null,
-      rating ?? null // ✅ Rating from Android
-    ])
+      comment ?? null,
+      average_rating ?? 0  // ✅ use rating from Android
+    ]);
 
-    const filledfeedbacks_id = result.insertId
+    const filledfeedbacks_id = result.insertId;
 
-    // 2. Insert responses if present (optional)
+    // Step 2: Insert question responses (if available)
     if (Array.isArray(questionResponses) && questionResponses.length > 0) {
       const insertResponse = `
         INSERT INTO FeedbackResponses (filledfeedbacks_id, feedbackquestion_id, response_rating)
         VALUES (?, ?, ?)
-      `
+      `;
       for (const response of questionResponses) {
         await connection.execute(insertResponse, [
           filledfeedbacks_id,
           response.feedbackquestion_id ?? null,
           response.response_rating ?? null,
-        ])
+        ]);
       }
+
+      // Optional: recalc average rating from question responses
+      const updateRating = `
+        UPDATE FilledFeedback
+        SET rating = (
+          SELECT ROUND(AVG(
+            CASE
+              WHEN FR.response_rating = 'excellent' THEN 5
+              WHEN FR.response_rating = 'good' THEN 4
+              WHEN FR.response_rating = 'satisfactory' THEN 3
+              WHEN FR.response_rating = 'unsatisfactory' THEN 2
+              ELSE 1
+            END
+          ), 0)
+          FROM FeedbackResponses FR
+          WHERE FR.filledfeedbacks_id = ?
+        )
+        WHERE filledfeedbacks_id = ?
+      `;
+      await connection.execute(updateRating, [filledfeedbacks_id, filledfeedbacks_id]);
     }
 
-    // ❌ Remove rating recalculation step (optional)
-    // Because now we are trusting the rating sent from Android
-    // If you still want to calculate rating from responses, keep this block
+    await connection.commit();
 
-    await connection.commit()
-
-    // 4. Get the saved feedback
+    // Return inserted record
     const [rows] = await connection.execute(
       `SELECT * FROM FilledFeedback WHERE filledfeedbacks_id = ?`,
       [filledfeedbacks_id]
-    )
+    );
 
-    res.send(utils.createSuccess(rows[0]))
+    res.send(utils.createSuccess(rows[0]));
   } catch (ex) {
-    if (connection) await connection.rollback()
-    res.send(utils.createError(ex))
+    if (connection) await connection.rollback();
+    res.send(utils.createError(ex));
   } finally {
-    if (connection) connection.release()
+    if (connection) connection.release();
   }
-})
-
-
-
+});
 
 
 // GET all FilledFeedback (with course, subject, faculty, student)

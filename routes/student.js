@@ -290,16 +290,26 @@ router.get('/getall', async (request, response) => {
 //  Get student Profile 
 
 
+//  Get student Profile 
+
 
 router.get('/profile', verifyToken, async (req, res) => {
   try {
     const student_id = req.data.student_id;
 
     const statement = `
-      SELECT student_id, studentname, email, course_id,batch_id
-      FROM student
-      WHERE student_id = ?
+      SELECT 
+        s.student_id,
+        s.studentname, 
+        s.email,
+        c.coursename,
+        b.batchname
+      FROM student s
+      JOIN course c ON s.course_id = c.course_id
+      JOIN batch b ON s.batch_id = b.batch_id
+      WHERE s.student_id = ?
     `;
+
     const [result] = await db.execute(statement, [student_id]);
 
     if (result.length === 0) {
@@ -308,7 +318,7 @@ router.get('/profile', verifyToken, async (req, res) => {
 
     res.json(utils.createSuccess(result[0]));
   } catch (ex) {
-    console.error(ex);
+    console.error("Profile API Error:", ex);
     res.status(500).json(utils.createError(ex));
   }
 });
