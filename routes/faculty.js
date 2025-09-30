@@ -219,6 +219,50 @@ router.get("/faculty-feedback", async (req, res) => {
 
 
 
+
+
+// 📊 Get per-question feedback summary for the logged-in faculty
+router.get("/feedback-summary", verifyToken, async (req, res) => {
+  const { faculty_id } = req.data;
+
+  try {
+    const query = `
+      SELECT fq.feedbackquestion_id, fq.questiontext, fr.response_rating, COUNT(*) AS count
+      FROM feedbackresponses fr
+      JOIN filledfeedback ff ON fr.filledfeedbacks_id = ff.filledfeedbacks_id
+      JOIN schedulefeedback sf ON ff.schedulefeedback_id = sf.schedulefeedback_id
+      JOIN feedbackquestions fq ON fr.feedbackquestion_id = fq.feedbackquestion_id
+      WHERE sf.faculty_id = ?
+      GROUP BY fq.feedbackquestion_id, fq.questiontext, fr.response_rating
+      ORDER BY fq.feedbackquestion_id;
+    `;
+
+    const [rows] = await db.execute(query, [faculty_id]);
+
+    if (rows.length === 0) {
+      return res.send(utils.createError("No feedback responses found for this faculty"));
+    }
+
+    // Structure: { "Clarity of Explanations": { excellent: 3, good: 1, ... }, ... }
+    const feedbackSummary = {};
+
+    rows.forEach(row => {
+      const questionText = row.questiontext;
+      if (!feedbackSummary[questionText]) {
+        feedbackSummary[questionText] = {};
+      }
+      feedbackSummary[questionText][row.response_rating] = row.count;
+    });
+
+    res.send(utils.createSuccess(feedbackSummary));
+  } catch (ex) {
+    console.error("Feedback summary error:", ex.message);
+    res.send(utils.createError(ex.message || "Something went wrong while fetching feedback summary"));
+  }
+});
+
+
+
 //addfacultyfeedback
 // Get only Trainers & Lab Mentors Faculties
 router.get('/trainers-labs', async (req, res) => {
@@ -400,6 +444,38 @@ router.put('/update/:faculty_id', async (req, res) => {
         res.send(utils.createError(ex));
     }
 });
+
+
+
+
+// GET /faculty/report/all - only Trainer & Lab Mentor
+router.get("/report/all", async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT 
+          fa.faculty_id,
+          fa.facultyname,
+          ROUND(IFNULL(AVG(ff.rating), 0), 2) AS avg_rating,
+          COUNT(ff.filledfeedbacks_id) AS feedback_count
+       FROM Faculty fa
+       LEFT JOIN ScheduleFeedback sf ON fa.faculty_id = sf.faculty_id
+       LEFT JOIN FilledFeedback ff ON sf.schedulefeedback_id = ff.schedulefeedback_id
+       WHERE fa.role_id IN (1, 2)
+       GROUP BY fa.faculty_id, fa.facultyname
+       ORDER BY fa.facultyname`
+    );
+
+    if (rows.length === 0) {
+      return res.send(utils.createError("No Trainer or Lab Mentor found"));
+    }
+
+    res.send(utils.createSuccess(rows));
+  } catch (err) {
+    console.error("Error fetching Trainer & Lab Mentor report:", err);
+    res.status(500).send(utils.createError("Error fetching faculty report"));
+  }
+});
+
 
 
 module.exports = router;

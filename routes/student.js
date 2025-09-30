@@ -204,4 +204,88 @@ router.get('/getall', async (req, res) => {
 
 
 
+
+// Student submits feedback 
+router.post('/filledfeedback', async (req, res) => {
+  const { student_id, schedulefeedback_id, comments, responses } = req.body
+
+  if (!student_id || !schedulefeedback_id || !responses || responses.length === 0) {
+    return res.status(400).json({ error: 'Missing required fields' })
+  }
+
+  const connection = await db.getConnection()
+  await connection.beginTransaction()
+
+  try {
+    // 1. Insert into filledfeedback (rating = 0 initially)
+    const [result] = await connection.execute(
+      `INSERT INTO Filledfeedback (student_id, schedulefeedback_id, comments, rating) 
+       VALUES (?, ?, ?, 0)`,
+      [student_id, schedulefeedback_id, comments || null]
+    )
+
+    const filledfeedbacks_id = result.insertId
+
+    // 2. Insert responses (store response_text as response_rating)
+    for (const resp of responses) {
+      await connection.execute(
+        `INSERT INTO Feedbackresponses (filledfeedbacks_id, feedbackquestion_id, response_rating)
+         VALUES (?, ?, ?)`,
+        [filledfeedbacks_id, resp.feedbackquestion_id, resp.response_text]
+      )
+    }
+
+    // 3. Update filledfeedback.rating based on average mapping
+    const updateQuery = `
+      UPDATE Filledfeedback
+      SET rating = (
+        SELECT ROUND(AVG(
+          CASE
+            WHEN fr.response_rating = 'excellent' THEN 5
+            WHEN fr.response_rating = 'good' THEN 4
+            WHEN fr.response_rating = 'satisfactory' THEN 3
+            WHEN fr.response_rating = 'unsatisfactory' THEN 2
+            ELSE 1
+          END
+        ))
+        FROM Feedbackresponses fr
+        WHERE fr.filledfeedbacks_id = ?
+      )
+      WHERE filledfeedbacks_id = ?
+    `
+    await connection.execute(updateQuery, [filledfeedbacks_id, filledfeedbacks_id])
+
+    // 4. Fetch updated filledfeedback and responses
+    const [filledfeedbackRows] = await connection.execute(
+      `SELECT filledfeedbacks_id, student_id, schedulefeedback_id, comments, rating
+       FROM Filledfeedback
+       WHERE filledfeedbacks_id = ?`,
+      [filledfeedbacks_id]
+    )
+
+    const [responseRows] = await connection.execute(
+      `SELECT feedbackquestion_id, response_rating AS response_text
+       FROM Feedbackresponses
+       WHERE filledfeedbacks_id = ?`,
+      [filledfeedbacks_id]
+    )
+
+    await connection.commit()
+
+    res.json({
+      ...filledfeedbackRows[0],
+      responses: responseRows
+    })
+  } catch (ex) {
+    await connection.rollback()
+    console.error('Feedback submission error:', ex.message)
+    res.status(500).json({ error: ex.sqlMessage || ex.message })
+  } finally {
+    connection.release()
+  }
+})
+
+
+
+
 module.exports = router;
