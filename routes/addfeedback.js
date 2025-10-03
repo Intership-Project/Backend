@@ -13,7 +13,7 @@ const path = require('path');
 // Add New Feedback (Admin)
 router.post('/', upload.single("pdf_file"), async (req, res) => {
   try {
-    const {
+    let {
       course_id,
       batch_id, 
       subject_id,
@@ -23,22 +23,20 @@ router.post('/', upload.single("pdf_file"), async (req, res) => {
       date
     } = req.body;
 
-     const pdf_file = req.file ? req.file.filename : null;
+    // Convert undefined to null for optional fields
+    const pdf_file = req.file ? req.file.filename : null;
+    batch_id = batch_id || null;
+    date = date || null;
 
-// For Lab feedback, batch_id is required
-const isLabFeedback = feedbackmoduletype_id.toLowerCase() === 'lab';
-if (isLabFeedback && !batch_id) {
-  return res.send(utils.createError('Batch is required for Lab feedback'));
-}
+    // Validate required fields
+    if (!course_id || !subject_id || !faculty_id || !feedbackmoduletype_id || !feedbacktype_id) {
+      return res.send(utils.createError('All required fields must be provided'));
+    }
 
-// For Theory feedback, batch_id can be null
-const batchIdToSave = batch_id || null;
-
-// Validate required fields (except batch for Theory)
-if (!course_id || !subject_id || !faculty_id || !feedbackmoduletype_id || !feedbacktype_id || !date || !pdf_file) {
-  return res.send(utils.createError('All required fields must be provided'));
-}
-
+    // For Lab feedback, batch_id is required
+    if (feedbackmoduletype_id.toLowerCase() === 'lab' && !batch_id) {
+      return res.send(utils.createError('Batch is required for Lab feedback'));
+    }
 
     // Check if Admin already added feedback
     const [adminExisting] = await db.execute(
@@ -66,13 +64,13 @@ if (!course_id || !subject_id || !faculty_id || !feedbackmoduletype_id || !feedb
       return res.send(utils.createError("A Course Coordinator has already added feedback for this faculty"));
     }
 
-    //  Insert Admin feedback
+    // Insert Admin feedback
     const [result] = await db.execute(
-    `INSERT INTO addfeedback 
-   (course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file, added_by_role, added_by_id)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Admin', NULL)`,
-  [course_id, batchIdToSave, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file]
-);
+      `INSERT INTO addfeedback 
+       (course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file, added_by_role, added_by_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Admin', NULL)`,
+      [course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file]
+    );
 
     res.send(utils.createSuccess({
       addfeedback_id: result.insertId,
@@ -83,14 +81,16 @@ if (!course_id || !subject_id || !faculty_id || !feedbackmoduletype_id || !feedb
       feedbackmoduletype_id,
       feedbacktype_id,
       date,
-      pdf_file: pdf_file || null,
+      pdf_file: pdf_file,
       added_by_role: "Admin"
     }));
 
   } catch (ex) {
+    console.error('Add feedback error:', ex);
     res.send(utils.createError(ex.message || ex));
   }
 });
+
 
 
 
@@ -191,7 +191,7 @@ router.delete("/:id", async (req, res) => {
 
     const pdfFile = existing[0].pdf_file;
     if (pdfFile) {
-      const filePath = path.join(__dirname, "../uploads", pdfFile);
+      const filePath = path.join(__dirname, "../uploads/feedback_reports", pdfFile);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 

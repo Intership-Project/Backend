@@ -5,9 +5,10 @@ const utils = require('../utils');
 const cryptoJs = require('crypto-js');
 const jwt = require('jsonwebtoken');
 const config = require('../config');
+const verifyToken = require('../middlewares/verifyToken');
 
 
-// REGISTER (student also Admin)
+// REGISTER (Admin)
 router.post('/register', async (req, res) => {
   const { studentname, email, password, course_id, batch_id } = req.body;
 
@@ -46,6 +47,69 @@ router.post('/register', async (req, res) => {
     res.send(utils.createError(ex));
   }
 });
+
+
+
+
+// student Registers
+router.post('/studentregister', async (request, response) => {
+  const { studentname, email, password, course_id,batch_id} = request.body;
+
+
+  // Validation
+  if (!studentname || !email || !password || !course_id || !batch_id) {
+    return response.status(400).json({
+      status: 'error',
+      message: 'Missing required fields',
+      received: request.body // helpful for debugging
+    });
+
+    
+  }
+  try {
+     // Check if batch exists
+    const [batchCheck] = await db.execute(
+      'SELECT batch_id FROM batch WHERE batch_id = ?',
+      [batch_id]
+    );
+
+    if (batchCheck.length === 0) {
+      return response.status(400).json({
+        status: 'error',
+        message: `Batch ID ${batch_id} does not exist`
+      });
+    }
+    //  Encrypt password using SHA256 before saving into DB
+    const encryptedPassword = String(cryptoJs.SHA256(password));
+
+    // SQL query to insert student details
+    const statement = `
+      INSERT INTO Student (studentname, email, password, course_id,batch_id)
+      VALUES (?, ?, ?, ?,?)
+    `
+
+    // Execute query with provided values
+    const [result] = await db.execute(statement, [
+      studentname,
+      email,
+      encryptedPassword,
+      course_id,
+      batch_id
+    ])
+
+    //  Send success response
+    response.send(utils.createSuccess({
+      student_id: result.insertId,
+      studentname,
+      email,
+      course_id,
+      batch_id
+    }))
+  } catch (ex) {
+    response.send(utils.createError(ex))
+    console.error(ex);
+  }
+})
 
 
 
@@ -158,10 +222,21 @@ router.put('/update/:id', async (req, res) => {
     const [result] = await db.execute(statement, params);
     if (result.affectedRows === 0) return res.status(404).json({ message: 'Student not found' });
 
-    res.json({ message: 'Student updated successfully' });
+    // Fetch updated student
+    const [rows] = await db.execute(
+      `SELECT s.student_id, s.studentname, s.email, s.course_id, s.batch_id,
+              c.coursename, b.batchname
+       FROM student s
+       LEFT JOIN course c ON s.course_id = c.course_id
+       LEFT JOIN batch b ON s.batch_id = b.batch_id
+       WHERE s.student_id = ?`,
+      [student_id]
+    );
+
+    res.json({ status: 'success', data: rows[0] });
   } catch (ex) {
     console.error(ex);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ status: 'error', error: 'Internal Server Error' });
   }
 });
 
@@ -199,6 +274,31 @@ router.get('/getall', async (req, res) => {
   } catch (ex) {
     console.error(ex);
     res.send(utils.createError(ex));
+  }
+});
+
+
+
+//  Get student Profile 
+router.get('/profile', verifyToken, async (req, res) => {
+  try {
+    const student_id = req.data.student_id;
+
+    const statement = `
+      SELECT student_id, studentname, email, course_id,batch_id
+      FROM student
+      WHERE student_id = ?
+    `;
+    const [result] = await db.execute(statement, [student_id]);
+
+    if (result.length === 0) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    res.json(utils.createSuccess(result[0]));
+  } catch (ex) {
+    console.error(ex);
+    res.status(500).json(utils.createError(ex));
   }
 });
 

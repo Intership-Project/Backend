@@ -100,8 +100,11 @@ router.delete('/:feedbackmoduletype_id', async (req, res) => {
   })
   
 
+
+  
 //addfacultyfeedback fetch moduletype for selected feedback type
-// GET module types by feedback type
+// // GET module types by feedback type
+
 router.get("/type/:feedbackTypeId", async (req, res) => {
   const { feedbackTypeId } = req.params;
 
@@ -129,5 +132,7 @@ router.get("/type/:feedbackTypeId", async (req, res) => {
 });
 
 
+  
+   
 
 module.exports = router

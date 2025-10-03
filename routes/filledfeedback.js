@@ -84,13 +84,27 @@ router.get('/stats/:course_id', async (req, res) => {
   try {
     const [[stats]] = await db.execute(`
       SELECT 
-        COUNT(*) AS totalFeedback,
-        SUM(CASE WHEN rating IS NULL OR rating = 0 THEN 1 ELSE 0 END) AS pendingReview,
-        SUM(CASE WHEN rating > 0 THEN 1 ELSE 0 END) AS facultyFeedbackAdded
-      FROM FilledFeedback AS FF
-      INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
-      WHERE SF.course_id = ?
-    `, [course_id]);
+        -- total student filled feedbacks
+        (SELECT COUNT(*) 
+         FROM filledfeedback FF
+         INNER JOIN schedulefeedback SF 
+           ON FF.schedulefeedback_id = SF.schedulefeedback_id
+         WHERE SF.course_id = ?) AS totalFeedbacks,
+
+        -- CC uploaded PDFs
+        (SELECT COUNT(*) 
+         FROM addfeedback AF
+         WHERE AF.course_id = ?) AS facultyFeedbackAdded,
+
+
+        -- Pending reviews (feedbacks with review_status = 'Pending')
+        (SELECT COUNT(*) 
+         FROM filledfeedback FF
+         INNER JOIN schedulefeedback SF 
+           ON FF.schedulefeedback_id = SF.schedulefeedback_id
+         WHERE SF.course_id = ? 
+           AND FF.review_status = 'Pending') AS pendingReview
+    `, [course_id, course_id, course_id]);
 
     res.send(utils.createSuccess(stats));
   } catch (err) {
@@ -118,7 +132,7 @@ router.get('/recent/:course_id', async (req, res) => {
     SF.EndDate,
     FF.rating,
     FF.comments,
-     FF.review_status AS status
+     FF.review_status
 FROM FilledFeedback AS FF
 INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
 INNER JOIN Student AS S ON FF.student_id = S.student_id
@@ -128,7 +142,7 @@ LEFT JOIN FeedbackModuleType AS FMT ON SF.feedbackmoduletype_id = FMT.feedbackmo
 LEFT JOIN FeedbackType AS FT ON SF.feedbacktype_id = FT.feedbacktype_id
 WHERE SF.course_id = ?
 ORDER BY FF.filledfeedbacks_id DESC
-LIMIT 3;
+LIMIT 8;
     `, [course_id]);
 
     res.send(utils.createSuccess(rows));
@@ -357,7 +371,7 @@ router.get('/download/schedule/:schedulefeedback_id', async (req, res) => {
   const { schedulefeedback_id } = req.params;
 
   try {
-    // Fetch feedbacks and responses
+    // Fetch feedbacks with course, subject, faculty details
     const [feedbackRows] = await db.execute(`
       SELECT 
         FF.filledfeedbacks_id, FF.comments, FF.rating,
@@ -374,9 +388,9 @@ router.get('/download/schedule/:schedulefeedback_id', async (req, res) => {
       LEFT JOIN FeedbackQuestions AS FQ ON FR.feedbackquestion_id = FQ.feedbackquestion_id
       INNER JOIN Student AS S ON FF.student_id = S.student_id
       INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
-      INNER JOIN Course AS C ON SF.course_id = C.course_id
-      INNER JOIN Subject AS Sub ON SF.subject_id = Sub.subject_id
-      INNER JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
+      LEFT JOIN Course AS C ON SF.course_id = C.course_id
+      LEFT JOIN Subject AS Sub ON SF.subject_id = Sub.subject_id
+      LEFT JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
       WHERE FF.schedulefeedback_id = ?
       ORDER BY FF.filledfeedbacks_id, FR.feedbackquestion_id
     `, [schedulefeedback_id]);
@@ -385,15 +399,20 @@ router.get('/download/schedule/:schedulefeedback_id', async (req, res) => {
       return res.status(404).json({ status: 'error', error: 'No feedback found for this schedule' });
     }
 
-    // Set headers BEFORE streaming
-    res.setHeader('Content-Disposition', `attachment; filename=feedback_schedule_${schedulefeedback_id}.pdf`);
+    const first = feedbackRows[0];
+
+    // Sanitize names to use in filename
+    const sanitize = (text) => (text || 'Unknown').replace(/[\/\\?%*:|"<> ]/g, '_');
+    const filename = `${sanitize(first.coursename)}-${sanitize(first.subjectname)}-${sanitize(first.facultyname)}-Responses.pdf`;
+
+    // Set headers for PDF download
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'application/pdf');
 
     const doc = new PDFDocument({ margin: 30, size: 'A4' });
     doc.pipe(res);
 
-    // Header info
-    const first = feedbackRows[0];
+    // PDF Header
     doc.fontSize(18).text('Feedback Report', { align: 'center' });
     doc.moveDown(0.5);
     doc.fontSize(12)
@@ -405,7 +424,7 @@ router.get('/download/schedule/:schedulefeedback_id', async (req, res) => {
       .text(`End Date: ${first.EndDate ? new Date(first.EndDate).toLocaleDateString() : '-'}`);
     doc.moveDown(1);
 
-    // Group by filledfeedbacks_id
+    // Group feedbacks by filledfeedbacks_id
     const grouped = {};
     feedbackRows.forEach(row => {
       if (!grouped[row.filledfeedbacks_id]) {
@@ -424,7 +443,7 @@ router.get('/download/schedule/:schedulefeedback_id', async (req, res) => {
       }
     });
 
-    // Write feedbacks
+    // Write feedback entries
     Object.values(grouped).forEach((fb, idx) => {
       doc.font('Helvetica-Bold').text(`Feedback #${idx + 1} - Student: ${fb.student}`, { underline: true });
       doc.moveDown(0.2);
@@ -449,11 +468,10 @@ router.get('/download/schedule/:schedulefeedback_id', async (req, res) => {
     doc.end(); // finalize PDF
 
   } catch (err) {
-    console.error('PDF download error:', err);
-    if (!res.headersSent) res.status(500).json({ status: 'error', error: 'Failed to generate PDF' });
+    console.error('PDF generation failed:', err);
+    res.status(500).json({ status: 'error', error: 'Failed to generate PDF' });
   }
 });
-
 
 
 
