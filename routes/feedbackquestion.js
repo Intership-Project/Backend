@@ -4,9 +4,9 @@ const db = require('../db')
 const utils = require('../utils')
 
 
+
+//Admin
 // CREATE FeedbackQuestion
-
-
 router.post('/', async (req, res) => {
   const { questiontext, feedbacktype_id } = req.body
   try {
@@ -32,8 +32,10 @@ router.post('/', async (req, res) => {
   }
 })
 
-// GET All FeedbackQuestions
 
+
+//Admin
+// GET All FeedbackQuestions
 router.get('/', async (req, res) => {
 
     try {
@@ -50,8 +52,9 @@ router.get('/', async (req, res) => {
   })
 
 
-// GET FeedbackQuestion by ID
 
+
+// GET FeedbackQuestion by ID
 router.get('/:feedbackquestion_id', async (req, res) => {
 
     const { feedbackquestion_id } = req.params
@@ -75,8 +78,9 @@ router.get('/:feedbackquestion_id', async (req, res) => {
   })
 
 
-// UPDATE FeedbackQuestion
 
+//Admin
+// UPDATE FeedbackQuestion
 router.put('/:feedbackquestion_id', async (req, res) => {
 
     const { feedbackquestion_id } = req.params
@@ -106,8 +110,10 @@ router.put('/:feedbackquestion_id', async (req, res) => {
       res.send(utils.createError(ex))
     }
   })
-  // 📖 Get Questions by FeedbackType (Theory / Lab)
-  
+
+
+
+  //Get Questions by FeedbackType (Theory / Lab)
 router.get('/feedbacktype/:feedbacktype_id', async (req, res) => {
   const { feedbacktype_id } = req.params
   try {
@@ -128,6 +134,30 @@ router.get('/feedbacktype/:feedbacktype_id', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
+
+
+// DELETE FeedbackQuestion
+router.delete('/:feedbackquestion_id', async (req, res) => {
+  const { feedbackquestion_id } = req.params
+
+  try {
+    const statement = `
+      DELETE FROM FeedbackQuestions
+      WHERE feedbackquestion_id = ?
+    `
+    const [result] = await db.execute(statement, [feedbackquestion_id])
+
+    if (result.affectedRows === 0) {
+      res.send(utils.createError('FeedbackQuestion not found'))
+    } else {
+      res.send(utils.createSuccess(`FeedbackQuestion with id ${feedbackquestion_id} deleted`))
+    }
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+
 
 
   

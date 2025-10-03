@@ -5,14 +5,12 @@ const utils = require('../utils')
 
 
 // create feedbacktype
-
 router.post('/', async (req, res) => {
   const { fbtypename } = req.body
   try {
     if (!fbtypename) {
       return res.send(utils.createError('fbtypename is required'))
     }
-
 
     const statement = `
       INSERT INTO FeedbackType (fbtypename)
@@ -29,8 +27,10 @@ router.post('/', async (req, res) => {
     res.send(utils.createError(ex))
   }
 })
-// get FeedbackType by ID
 
+
+
+// get FeedbackType by ID
 router.get('/:feedbacktype_id', async (req, res) => {
     const { feedbacktype_id } = req.params
     try {
@@ -51,20 +51,30 @@ router.get('/:feedbacktype_id', async (req, res) => {
     }
   })
   
-// get all feedbacktypes
 
+
+//get all feedbacktypes
+//addfacultyfeedback  and Admin scheduleform and addfeedback fetch feedbacktype for a course
 router.get('/', async (req, res) => {
-    try {
-      const statement = `
-        SELECT feedbacktype_id, fbtypename
-        FROM FeedbackType
-      `
-      const [rows] = await db.execute(statement)
-      res.send(utils.createSuccess(rows))
-    } catch (ex) {
-      res.send(utils.createError(ex))
+  try {
+    const statement = `
+      SELECT feedbacktype_id, fbtypename
+      FROM FeedbackType
+    `;
+    const [rows] = await db.execute(statement);
+
+    if (rows.length === 0) {
+      res.send(utils.createError('No feedback types found'));
+    } else {
+      res.send(utils.createSuccess(rows));
     }
-  })
+  } catch (ex) {
+    res.send(utils.createError(ex.message || ex));
+  }
+});
+
+
+
 // delete feedbackType
 router.delete('/:feedbacktype_id', async (req, res) => {
     const { feedbacktype_id } = req.params
@@ -84,6 +94,17 @@ router.delete('/:feedbacktype_id', async (req, res) => {
       res.send(utils.createError(ex))
     }
   })
-  
+
+
+
+  //get feedbacktype based on courseid
+router.get('/:course_id', async (req, res) => {
+  const { course_id } = req.params;
+  const statement = `SELECT * FROM FeedbackType WHERE course_id = ?`;
+  const [rows] = await db.execute(statement, [course_id]);
+  res.send(utils.createSuccess(rows));
+});
+
+
 
 module.exports = router

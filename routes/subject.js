@@ -3,7 +3,9 @@ const router = express.Router()
 const db = require('../db')
 const utils = require('../utils')
 
-// CREATE Subject
+
+
+// CREATE Subject(Admin)
 router.post('/', async (req, res) => {
   const { subjectname, course_id } = req.body
 
@@ -26,10 +28,32 @@ router.post('/', async (req, res) => {
   }
 })
 
+
+
+// GET subjects by course_id 
+//addfacultyfeedback for cc and scheduleform for Admin and admin addfeedback
+router.get('/course/:course_id', async (req, res) => {
+  const { course_id } = req.params;
+  try {
+    const [rows] = await db.execute(
+      ` SELECT * FROM subject WHERE course_id = ?`,
+      [course_id]
+    );
+   res.json({ status: "success", data: rows });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: "error", error: "Internal Server Error" });
+  }
+});
+
+
+
+
+//Admin
 // GET All Subjects (with Course info)
 router.get('/', async (req, res) => {
-    try {
-      const statement = `
+  try {
+    const statement = `
         SELECT 
             Subject.subject_id,
             Subject.subjectname,
@@ -40,17 +64,20 @@ router.get('/', async (req, res) => {
         INNER JOIN 
             Course ON Subject.course_id = Course.course_id
       `
-      const [rows] = await db.execute(statement)
-      res.send(utils.createSuccess(rows))
-    } catch (ex) {
-      res.send(utils.createError(ex))
-    }
-  })
-  // GET Subject by ID
+    const [rows] = await db.execute(statement)
+    res.send(utils.createSuccess(rows))
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+
+
+// GET Subject by ID
 router.get('/:subject_id', async (req, res) => {
-    const { subject_id } = req.params
-    try {
-      const statement = `
+  const { subject_id } = req.params
+  try {
+    const statement = `
         SELECT 
             Subject.subject_id,
             Subject.subjectname,
@@ -63,83 +90,68 @@ router.get('/:subject_id', async (req, res) => {
         WHERE 
             Subject.subject_id = ?
       `
-      const [rows] = await db.execute(statement, [subject_id])
-      if (rows.length === 0) {
-        res.send(utils.createError('Subject not found'))
-      } else {
-        res.send(utils.createSuccess(rows[0]))
-      }
-    } catch (ex) {
-      res.send(utils.createError(ex))
+    const [rows] = await db.execute(statement, [subject_id])
+    if (rows.length === 0) {
+      res.send(utils.createError('Subject not found'))
+    } else {
+      res.send(utils.createSuccess(rows[0]))
     }
-  })
-  // UPDATE Subject
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+
+
+
+// UPDATE Subject(Admin)
 router.put('/:subject_id', async (req, res) => {
-    const { subject_id } = req.params
-    const { subjectname, course_id } = req.body
-  
-    if (!subjectname || !course_id) {
-      return res.send(utils.createError('subjectname and course_id are required'))
-    }
-  
-    try {
-      const statement = `
+  const { subject_id } = req.params
+  const { subjectname, course_id } = req.body
+
+  if (!subjectname || !course_id) {
+    return res.send(utils.createError('subjectname and course_id are required'))
+  }
+
+  try {
+    const statement = `
         UPDATE Subject
         SET subjectname = ?, course_id = ?
         WHERE subject_id = ?
       `
-      const [result] = await db.execute(statement, [subjectname, course_id, subject_id])
-  
-      if (result.affectedRows === 0) {
-        res.send(utils.createError('Subject not found or not updated'))
-      } else {
-        res.send(utils.createSuccess({ subject_id, subjectname, course_id }))
-      }
-    } catch (ex) {
-      res.send(utils.createError(ex))
+    const [result] = await db.execute(statement, [subjectname, course_id, subject_id])
+
+    if (result.affectedRows === 0) {
+      res.send(utils.createError('Subject not found or not updated'))
+    } else {
+      res.send(utils.createSuccess({ subject_id, subjectname, course_id }))
     }
-  })
-  router.delete('/:subject_id', async (req, res) => {
-    const { subject_id } = req.params
-    try {
-      const statement = `
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+
+//DELETE Subject(Admin)
+router.delete('/:subject_id', async (req, res) => {
+  const { subject_id } = req.params
+  try {
+    const statement = `
         DELETE FROM Subject
         WHERE subject_id = ?
       `
-      const [result] = await db.execute(statement, [subject_id])
-  
-      if (result.affectedRows === 0) {
-        res.send(utils.createError('Subject not found'))
-      } else {
-        res.send(utils.createSuccess(`Subject with id ${subject_id} deleted`))
-      }
-    } catch (ex) {
-      // catches MySQL foreign key errors too
-      res.send(utils.createError(ex))
-    }
-  })
+    const [result] = await db.execute(statement, [subject_id])
 
-  //GET subject by course_id
-
-  router.get('/course/:course_id', async (req, res) => {
-    const { course_id } = req.params
-    try {
-      const statement = `
-        SELECT subject_id, subjectname, course_id
-        FROM Subject 
-        WHERE course_id = ?
-      `
-      const [rows] = await db.execute(statement, [course_id])
-  
-      if (rows.length === 0) {
-        res.send(utils.createError('No subjects found for this course'))
-      } else {
-        res.send(utils.createSuccess(rows))
-      }
-    } catch (ex) {
-      res.send(utils.createError(ex))
+    if (result.affectedRows === 0) {
+      res.send(utils.createError('Subject not found'))
+    } else {
+      res.send(utils.createSuccess(`Subject with id ${subject_id} deleted`))
     }
-  })
-  
+  } catch (ex) {
+   
+    res.send(utils.createError(ex))
+  }
+})
+
 
 module.exports = router
