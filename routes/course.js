@@ -29,6 +29,22 @@ router.post('/', async (req, res) => {
 
 
 //cc register (facultylogin)
+router.get('/public', async (req, res) => {
+  try {
+    const statement = `
+      SELECT course_id, coursename
+      FROM Course
+    `
+
+    const [rows] = await db.execute(statement)
+    res.send(utils.createSuccess(rows))
+  } catch (ex) {
+    res.send(utils.createError(ex))
+  }
+})
+
+
+
 // GETAllCourses (Admin-addfeedback)
 router.get('/', async (req, res) => {
   try {
