@@ -3,6 +3,7 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const path = require("path");
 const verifyToken = require("./middlewares/verifyToken");
+require('dotenv').config();
 
 // Import routes
 const facultyRouter = require("./routes/faculty");
