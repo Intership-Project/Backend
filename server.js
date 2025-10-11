@@ -26,7 +26,10 @@ const PORT = process.env.PORT || 4000;
 
 // Middleware
 app.use(cors({
-origin: ['https://feeedbacksystem.netlify.app'], // your Netlify domain
+origin: [
+    'https://studentfeedbacksystem.netlify.app',
+    'https://feeedbacksystem.netlify.app',
+     ],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 

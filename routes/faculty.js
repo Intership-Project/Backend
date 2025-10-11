@@ -64,8 +64,8 @@ router.post('/login', async (req, res) => {
 
     const [facultyRows] = await db.execute(
       `SELECT f.faculty_id, f.facultyname, f.email, f.password, f.role_id, f.course_id, r.rolename
-       FROM faculty f
-       JOIN role r ON f.role_id = r.role_id
+       FROM Faculty f
+       JOIN Role r ON f.role_id = r.role_id
        WHERE f.email = ?`,
       [email]
     );
@@ -113,7 +113,7 @@ router.post('/login', async (req, res) => {
 router.post('/forgotpassword', async (req, res) => {
   const { email } = req.body;
   try {
-    const [rows] = await db.execute(`SELECT faculty_id, email FROM faculty WHERE email = ?`, [email]);
+    const [rows] = await db.execute(`SELECT faculty_id, email FROM Faculty WHERE email = ?`, [email]);
 
     if (rows.length === 0) return res.send(utils.createError('Faculty not found with this email'));
 
@@ -137,7 +137,7 @@ router.post('/resetpassword', async (req, res) => {
     const decoded = jwt.verify(resetToken, config.secret);
     const encryptedPassword = cryptoJs.SHA256(newPassword).toString();
 
-    await db.execute(`UPDATE faculty SET password = ? WHERE faculty_id = ?`, [encryptedPassword, decoded.faculty_id]);
+    await db.execute(`UPDATE Faculty SET password = ? WHERE faculty_id = ?`, [encryptedPassword, decoded.faculty_id]);
     res.send(utils.createSuccess('Password reset successfully'));
   } catch (ex) {
     res.send(utils.createError('Invalid or expired reset token'));
@@ -153,7 +153,7 @@ router.put('/profile', async (req, res) => {
   const faculty_id = req.data.faculty_id;
 
   try {
-    const statement = `UPDATE faculty SET facultyname = ?, email = ? WHERE faculty_id = ?`;
+    const statement = `UPDATE Faculty SET facultyname = ?, email = ? WHERE faculty_id = ?`;
     const [result] = await db.execute(statement, [facultyname, email, faculty_id]);
 
     res.send(utils.createSuccess({ updated: result.affectedRows, facultyId: faculty_id }));
@@ -175,14 +175,14 @@ router.put('/changepassword', async (req, res) => {
   }
 
   try {
-    const [rows] = await db.execute(`SELECT password FROM faculty WHERE faculty_id = ?`, [faculty_id]);
+    const [rows] = await db.execute(`SELECT password FROM Faculty WHERE faculty_id = ?`, [faculty_id]);
     if (rows.length === 0) return res.send(utils.createError('Faculty not found'));
 
     const oldHash = cryptoJs.SHA256(oldPassword).toString();
     if (oldHash !== rows[0].password) return res.send(utils.createError('Old password is incorrect'));
 
     const newHash = cryptoJs.SHA256(newPassword).toString();
-    await db.execute(`UPDATE faculty SET password = ? WHERE faculty_id = ?`, [newHash, faculty_id]);
+    await db.execute(`UPDATE Faculty SET password = ? WHERE faculty_id = ?`, [newHash, faculty_id]);
 
     res.send(utils.createSuccess('Password changed successfully'));
   } catch (ex) {
@@ -201,7 +201,7 @@ router.get("/faculty-feedback", async (req, res) => {
   try {
     const [feedbackRows] = await db.execute(
       `SELECT DISTINCT pdf_file 
-       FROM addfeedback 
+       FROM Addfeedback 
        WHERE faculty_id = ? AND pdf_file IS NOT NULL`,
       [faculty_id]
     );
@@ -228,10 +228,10 @@ router.get("/feedback-summary", verifyToken, async (req, res) => {
   try {
     const query = `
       SELECT fq.feedbackquestion_id, fq.questiontext, fr.response_rating, COUNT(*) AS count
-      FROM feedbackresponses fr
-      JOIN filledfeedback ff ON fr.filledfeedbacks_id = ff.filledfeedbacks_id
-      JOIN schedulefeedback sf ON ff.schedulefeedback_id = sf.schedulefeedback_id
-      JOIN feedbackquestions fq ON fr.feedbackquestion_id = fq.feedbackquestion_id
+      FROM Feedbackresponses fr
+      JOIN Filledfeedback ff ON fr.filledfeedbacks_id = ff.filledfeedbacks_id
+      JOIN Schedulefeedback sf ON ff.schedulefeedback_id = sf.schedulefeedback_id
+      JOIN Feedbackquestions fq ON fr.feedbackquestion_id = fq.feedbackquestion_id
       WHERE sf.faculty_id = ?
       GROUP BY fq.feedbackquestion_id, fq.questiontext, fr.response_rating
       ORDER BY fq.feedbackquestion_id;
@@ -267,7 +267,7 @@ router.get("/feedback-summary", verifyToken, async (req, res) => {
 // Get only Trainers & Lab Mentors Faculties
 router.get('/trainers-labs', async (req, res) => {
   try {
-    const [rows] = await db.execute(`SELECT faculty_id, facultyname, role_id FROM faculty WHERE role_id IN (1, 2)`);
+    const [rows] = await db.execute(`SELECT faculty_id, facultyname, role_id FROM Faculty WHERE role_id IN (1, 2)`);
     res.send(utils.createSuccess(rows));
   } catch (err) {
     res.send(utils.createError(err));
@@ -328,8 +328,8 @@ router.get('/:faculty_id', async (req, res) => {
     const facultyId = req.params.faculty_id;
     const [rows] = await db.execute(
       `SELECT f.faculty_id, f.facultyname, f.email, r.rolename
-       FROM faculty f
-       JOIN role r ON f.role_id = r.role_id
+       FROM Faculty f
+       JOIN Role r ON f.role_id = r.role_id
        WHERE f.faculty_id = ?`,
       [facultyId]
     );
@@ -458,8 +458,8 @@ router.get("/report/all", async (req, res) => {
           ROUND(IFNULL(AVG(ff.rating), 0), 2) AS avg_rating,
           COUNT(ff.filledfeedbacks_id) AS feedback_count
        FROM Faculty fa
-       LEFT JOIN ScheduleFeedback sf ON fa.faculty_id = sf.faculty_id
-       LEFT JOIN FilledFeedback ff ON sf.schedulefeedback_id = ff.schedulefeedback_id
+       LEFT JOIN Schedulefeedback sf ON fa.faculty_id = sf.faculty_id
+       LEFT JOIN Filledfeedback ff ON sf.schedulefeedback_id = ff.schedulefeedback_id
        WHERE fa.role_id IN (1, 2)
        GROUP BY fa.faculty_id, fa.facultyname
        ORDER BY fa.facultyname`
