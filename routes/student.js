@@ -24,7 +24,7 @@ router.post('/register', async (req, res) => {
     const encryptedPassword = cryptoJs.SHA256(password).toString();
 
     const statement = `
-      INSERT INTO student (studentname, email, password, course_id, batch_id)
+      INSERT INTO Student (studentname, email, password, course_id, batch_id)
       VALUES (?, ?, ?, ?, ?)
     `;
     const [result] = await db.execute(statement, [
@@ -69,7 +69,7 @@ router.post('/studentregister', async (request, response) => {
   try {
      // Check if batch exists
     const [batchCheck] = await db.execute(
-      'SELECT batch_id FROM batch WHERE batch_id = ?',
+      'SELECT batch_id FROM Batch WHERE batch_id = ?',
       [batch_id]
     );
 
@@ -124,8 +124,8 @@ router.post('/login', async (req, res) => {
   try {
     const [rows] = await db.execute(
       `SELECT s.student_id, s.studentname, s.email, s.password, s.course_id, s.batch_id, c.coursename
-       FROM student s
-       LEFT JOIN course c ON s.course_id = c.course_id
+       FROM Student s
+       LEFT JOIN Course c ON s.course_id = c.course_id
        WHERE s.email = ?`,
       [email]
     );
@@ -168,7 +168,7 @@ router.post('/forgotpassword', async (req, res) => {
   const { email } = req.body;
 
   try {
-    const [rows] = await db.execute(`SELECT student_id, email FROM student WHERE email = ?`, [email]);
+    const [rows] = await db.execute(`SELECT student_id, email FROM Student WHERE email = ?`, [email]);
     if (rows.length === 0) return res.send(utils.createError('Student not found with this email'));
 
     const student = rows[0];
@@ -192,7 +192,7 @@ router.post('/resetpassword', async (req, res) => {
     const decoded = jwt.verify(resetToken, config.secret);
     const encryptedPassword = cryptoJs.SHA256(newPassword).toString();
 
-    await db.execute(`UPDATE student SET password = ? WHERE student_id = ?`, [encryptedPassword, decoded.student_id]);
+    await db.execute(`UPDATE Student SET password = ? WHERE student_id = ?`, [encryptedPassword, decoded.student_id]);
     res.send(utils.createSuccess('Password reset successfully'));
   } catch (ex) {
     console.error('Reset Password Error:', ex.message);
@@ -208,7 +208,7 @@ router.put('/update/:id', async (req, res) => {
 
   try {
     let params = [studentname, email];
-    let statement = 'UPDATE student SET studentname=?, email=?, ';
+    let statement = 'UPDATE Student SET studentname=?, email=?, ';
 
     if (password) {
       const encryptedPassword = cryptoJs.SHA256(password).toString();
@@ -226,9 +226,9 @@ router.put('/update/:id', async (req, res) => {
     const [rows] = await db.execute(
       `SELECT s.student_id, s.studentname, s.email, s.course_id, s.batch_id,
               c.coursename, b.batchname
-       FROM student s
-       LEFT JOIN course c ON s.course_id = c.course_id
-       LEFT JOIN batch b ON s.batch_id = b.batch_id
+       FROM Student s
+       LEFT JOIN Course c ON s.course_id = c.course_id
+       LEFT JOIN Batch b ON s.batch_id = b.batch_id
        WHERE s.student_id = ?`,
       [student_id]
     );
@@ -248,7 +248,7 @@ router.delete('/delete/:id', async (req, res) => {
 
   try {
     const [result] = await db.execute(
-      'DELETE FROM student WHERE student_id = ?',
+      'DELETE FROM Student WHERE student_id = ?',
       [id]
     );
 
@@ -269,7 +269,7 @@ router.delete('/delete/:id', async (req, res) => {
 // GET ALL STUDENTS (byAdmin)
 router.get('/getall', async (req, res) => {
   try {
-    const [result] = await db.execute('SELECT student_id, studentname, email, course_id, batch_id FROM student');
+    const [result] = await db.execute('SELECT student_id, studentname, email, course_id, batch_id FROM Student');
     res.send(utils.createSuccess(result));
   } catch (ex) {
     console.error(ex);
@@ -286,7 +286,7 @@ router.get('/profile', verifyToken, async (req, res) => {
 
     const statement = `
       SELECT student_id, studentname, email, course_id,batch_id
-      FROM student
+      FROM Student
       WHERE student_id = ?
     `;
     const [result] = await db.execute(statement, [student_id]);

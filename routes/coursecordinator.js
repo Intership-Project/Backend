@@ -24,7 +24,7 @@ router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
     // New: If only faculty_id is sent, return batches 
     if (selectedFacultyId && !subject_id && !feedbackmoduletype_id && !feedbacktype_id && !date) {
       const [facultyRows] = await db.execute(
-        "SELECT role_id FROM faculty WHERE faculty_id = ?",
+        "SELECT role_id FROM Faculty WHERE faculty_id = ?",
         [selectedFacultyId]
       );
 
@@ -39,7 +39,7 @@ router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
       let batches = [];
       if (facultyRoleId === 1) {
         [batches] = await db.execute(
-          "SELECT * FROM batch WHERE course_id = ?",
+          "SELECT * FROM Batch WHERE course_id = ?",
           [cc_course_id]
         );
       }
@@ -55,7 +55,7 @@ router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
 
     // Check if Admin already added feedback for this faculty
     const [adminExisting] = await db.execute(
-      `SELECT * FROM addfeedback
+      `SELECT * FROM Addfeedback
        WHERE faculty_id=? AND subject_id=? AND batch_id <=> ?
        AND feedbackmoduletype_id=? AND feedbacktype_id=? 
        AND added_by_role='Admin' AND added_by_id IS NULL`,
@@ -68,7 +68,7 @@ router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
 
     // Check if this CC already added feedback
     const [ccExisting] = await db.execute(
-      `SELECT * FROM addfeedback
+      `SELECT * FROM Addfeedback
        WHERE faculty_id=? AND subject_id=? AND batch_id <=> ? 
        AND feedbackmoduletype_id=? AND feedbacktype_id=? 
        AND added_by_role='CC' AND added_by_id=?`,
@@ -81,7 +81,7 @@ router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
 
     // Ensure faculty exists
     const [facultyRows] = await db.execute(
-      "SELECT * FROM faculty WHERE faculty_id = ?",
+      "SELECT * FROM Faculty WHERE faculty_id = ?",
       [selectedFacultyId]
     );
 
@@ -104,7 +104,7 @@ router.post("/add-feedback", upload.single("pdf_file"), async (req, res) => {
 
     // Insert feedback
     const [result] = await db.execute(
-      `INSERT INTO addfeedback 
+      `INSERT INTO Addfeedback 
         (course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file, added_by_role, added_by_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'CC', ?)`,
       [cc_course_id, finalBatchId, subject_id, selectedFacultyId, feedbackmoduletype_id, feedbacktype_id, date, req.file.filename, cc_id]
@@ -143,7 +143,7 @@ router.get('/my-course', verifyToken, async (req, res) => {
     const ccId = req.data.faculty_id; // now req.data exists
     const statement = `
       SELECT C.course_id, C.coursename
-      FROM faculty F
+      FROM Faculty F
       LEFT JOIN Course C ON F.course_id = C.course_id
       WHERE F.faculty_id = ? AND F.role_id = 3
     `;

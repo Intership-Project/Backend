@@ -33,7 +33,7 @@ router.post('/register', async (request, response) => {
     }
 
     const statement = `
-      INSERT INTO ScheduleFeedback 
+      INSERT INTO Schedulefeedback 
       (course_id, subject_id, faculty_id, batch_id, feedbacktype_id, StartDate, EndDate, feedbackmoduletype_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `
@@ -80,7 +80,7 @@ router.get('/', async (request, response) => {
         f.facultyname,
         b.batch_id,
         b.batchname
-      FROM ScheduleFeedback sf
+      FROM Schedulefeedback sf
       JOIN Course c ON sf.course_id = c.course_id
       JOIN Subject s ON sf.subject_id = s.subject_id
       JOIN Faculty f ON sf.faculty_id = f.faculty_id
@@ -130,10 +130,10 @@ router.get('/stud', async (request, response) => {
         ft.fbtypename,
         c.coursename,
         s.subjectname
-      FROM ScheduleFeedback sf
+      FROM Schedulefeedback sf
       JOIN Course c ON sf.course_id = c.course_id
       JOIN Subject s ON sf.subject_id = s.subject_id
-      LEFT JOIN FeedbackType ft ON sf.feedbacktype_id = ft.feedbacktype_id
+      LEFT JOIN Feedbacktype ft ON sf.feedbacktype_id = ft.feedbacktype_id
     `;
       
 
@@ -167,7 +167,7 @@ router.get('/:id', async (request, response) => {
         f.facultyname,
         b.batch_id,
         b.batchname
-      FROM ScheduleFeedback sf
+      FROM Schedulefeedback sf
       JOIN Course c ON sf.course_id = c.course_id
       JOIN Subject s ON sf.subject_id = s.subject_id
       JOIN Faculty f ON sf.faculty_id = f.faculty_id
@@ -222,7 +222,7 @@ router.put('/:id', async (request, response) => {
 
     // Update record
     const statement = `
-      UPDATE ScheduleFeedback
+      UPDATE Schedulefeedback
       SET course_id = ?, subject_id = ?, faculty_id = ?, batch_id = ?, feedbacktype_id = ?, StartDate = ?, EndDate = ?, feedbackmoduletype_id = ?
       WHERE schedulefeedback_id = ?
     `
@@ -253,7 +253,7 @@ router.put('/:id', async (request, response) => {
         f.facultyname,
         b.batch_id,
         b.batchname
-      FROM ScheduleFeedback sf
+      FROM Schedulefeedback sf
       JOIN Course c ON sf.course_id = c.course_id
       JOIN Subject s ON sf.subject_id = s.subject_id
       JOIN Faculty f ON sf.faculty_id = f.faculty_id
@@ -279,16 +279,16 @@ router.delete('/:id', async (req, res) => {
     // Delete related FeedbackResponses first
     await db.execute(`
       DELETE fr
-      FROM FeedbackResponses fr
-      INNER JOIN FilledFeedback ff ON fr.filledfeedbacks_id = ff.filledfeedbacks_id
+      FROM Feedbackresponses fr
+      INNER JOIN Filledfeedback ff ON fr.filledfeedbacks_id = ff.filledfeedbacks_id
       WHERE ff.schedulefeedback_id = ?
     `, [id]);
 
     // Delete related FilledFeedback
-    await db.execute(`DELETE FROM FilledFeedback WHERE schedulefeedback_id = ?`, [id]);
+    await db.execute(`DELETE FROM Filledfeedback WHERE schedulefeedback_id = ?`, [id]);
 
     // Delete ScheduleFeedback
-    const [result] = await db.execute(`DELETE FROM ScheduleFeedback WHERE schedulefeedback_id = ?`, [id]);
+    const [result] = await db.execute(`DELETE FROM Schedulefeedback WHERE schedulefeedback_id = ?`, [id]);
 
     if (result.affectedRows === 0) {
       return res.send({ status: 'error', error: 'Schedule Feedback not found' });
@@ -318,7 +318,7 @@ router.post('/', async (req, res) => {
 
   try {
     const [result] = await db.execute(
-      `INSERT INTO ScheduleFeedback 
+      `INSERT INTO Schedulefeedback 
       (course_id, subject_id, faculty_id, batch_id, feedbacktype_id, feedbackmoduletype_id, StartDate, EndDate)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [course_id, subject_id, faculty_id, batch_id, feedbacktype_id, feedbackmoduletype_id, StartDate, EndDate]
@@ -344,7 +344,7 @@ router.patch('/:id/status', async (req, res) => {
   }
 
   try {
-    const statement = `UPDATE ScheduleFeedback SET status = ? WHERE schedulefeedback_id = ?`;
+    const statement = `UPDATE Schedulefeedback SET status = ? WHERE schedulefeedback_id = ?`;
     const [result] = await db.execute(statement, [status, id]);
 
     if (result.affectedRows === 0) {
@@ -352,7 +352,7 @@ router.patch('/:id/status', async (req, res) => {
     }
 
     const [rows] = await db.execute(
-      `SELECT * FROM ScheduleFeedback WHERE schedulefeedback_id = ?`,
+      `SELECT * FROM Schedulefeedback WHERE schedulefeedback_id = ?`,
       [id]
     );
 

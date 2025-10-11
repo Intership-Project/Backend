@@ -36,7 +36,7 @@ router.get('/course/:course_id', async (req, res) => {
   const { course_id } = req.params;
   try {
     const [rows] = await db.execute(
-      ` SELECT * FROM subject WHERE course_id = ?`,
+      ` SELECT * FROM Subject WHERE course_id = ?`,
       [course_id]
     );
    res.json({ status: "success", data: rows });

@@ -15,7 +15,7 @@ router.post('/', async (req, res) => {
     await connection.beginTransaction();
 
     const insertFeedback = `
-      INSERT INTO FilledFeedback (student_id, schedulefeedback_id, comments, rating)
+      INSERT INTO Filledfeedback (student_id, schedulefeedback_id, comments, rating)
       VALUES (?, ?, ?, 0)
     `;
     const [result] = await connection.execute(insertFeedback, [
@@ -28,7 +28,7 @@ router.post('/', async (req, res) => {
 
     if (Array.isArray(questionResponses) && questionResponses.length > 0) {
       const insertResponse = `
-        INSERT INTO FeedbackResponses (filledfeedbacks_id, feedbackquestion_id, response_rating)
+        INSERT INTO Feedbackresponses (filledfeedbacks_id, feedbackquestion_id, response_rating)
         VALUES (?, ?, ?)
       `;
       for (const response of questionResponses) {
@@ -41,7 +41,7 @@ router.post('/', async (req, res) => {
     }
 
     const updateRating = `
-      UPDATE FilledFeedback
+      UPDATE Filledfeedback
       SET rating = (
         SELECT AVG(
           CASE
@@ -52,7 +52,7 @@ router.post('/', async (req, res) => {
             ELSE 1
           END
         )
-        FROM FeedbackResponses FR
+        FROM Feedbackresponses FR
         WHERE FR.filledfeedbacks_id = ?
       )
       WHERE filledfeedbacks_id = ?
@@ -62,7 +62,7 @@ router.post('/', async (req, res) => {
     await connection.commit();
 
     const [rows] = await connection.execute(
-      `SELECT * FROM FilledFeedback WHERE filledfeedbacks_id = ?`,
+      `SELECT * FROM Filledfeedback WHERE filledfeedbacks_id = ?`,
       [filledfeedbacks_id]
     );
 
@@ -133,7 +133,7 @@ router.get('/recent/:course_id', async (req, res) => {
     FF.rating,
     FF.comments,
      FF.review_status
-FROM FilledFeedback AS FF
+FROM Filledfeedback AS FF
 INNER JOIN ScheduleFeedback AS SF ON FF.schedulefeedback_id = SF.schedulefeedback_id
 INNER JOIN Student AS S ON FF.student_id = S.student_id
 INNER JOIN Faculty AS F ON SF.faculty_id = F.faculty_id
