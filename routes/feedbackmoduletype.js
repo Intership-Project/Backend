@@ -14,7 +14,7 @@ router.post('/', async (req, res) => {
 
 
     const statement = `
-      INSERT INTO FeedbackModuleType (fbmoduletypename, feedbacktype_id)
+      INSERT INTO Feedbackmoduletype (fbmoduletypename, feedbacktype_id)
       VALUES (?, ?)
     `
 
@@ -37,8 +37,8 @@ router.get('/', async (req, res) => {
     try {
       const statement = `
         SELECT fmt.feedbackmoduletype_id, fmt.fbmoduletypename, fmt.feedbacktype_id, ft.fbtypename
-        FROM FeedbackModuleType fmt
-        INNER JOIN FeedbackType ft ON fmt.feedbacktype_id = ft.feedbacktype_id
+        FROM Feedbackmoduletype fmt
+        INNER JOIN Feedbacktype ft ON fmt.feedbacktype_id = ft.feedbacktype_id
       `
       const [rows] = await db.execute(statement)
       res.send(utils.createSuccess(rows))
@@ -55,8 +55,8 @@ router.get('/:feedbackmoduletype_id', async (req, res) => {
     try {
       const statement = `
         SELECT fmt.feedbackmoduletype_id, fmt.fbmoduletypename, fmt.feedbacktype_id, ft.fbtypename
-        FROM FeedbackModuleType fmt
-        INNER JOIN FeedbackType ft ON fmt.feedbacktype_id = ft.feedbacktype_id
+        FROM Feedbackmoduletype fmt
+        INNER JOIN Feedbacktype ft ON fmt.feedbacktype_id = ft.feedbacktype_id
         WHERE fmt.feedbackmoduletype_id = ?
       `
       const [rows] = await db.execute(statement, [feedbackmoduletype_id])
@@ -79,7 +79,7 @@ router.delete('/:feedbackmoduletype_id', async (req, res) => {
     const { feedbackmoduletype_id } = req.params
     try {
       const statement = `
-        DELETE FROM FeedbackModuleType
+        DELETE FROM Feedbackmoduletype
         WHERE feedbackmoduletype_id = ?
       `
       const [result] = await db.execute(statement, [feedbackmoduletype_id])
@@ -115,7 +115,7 @@ router.get("/type/:feedbackTypeId", async (req, res) => {
   try {
     const query = `
       SELECT feedbackmoduletype_id, fbmoduletypename, feedbacktype_id
-      FROM feedbackmoduletype
+      FROM Feedbackmoduletype
       WHERE feedbacktype_id = ?
     `;
     const [rows] = await db.execute(query, [feedbackTypeId]);
@@ -132,7 +132,5 @@ router.get("/type/:feedbackTypeId", async (req, res) => {
 });
 
 
-  
-   
 
 module.exports = router

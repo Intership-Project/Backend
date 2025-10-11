@@ -62,13 +62,13 @@ router.post('/login', async (req, res) => {
       return res.send(utils.createError('Email and password are required'));
     }
 
-    const [facultyRows] = await db.execute(
-      `SELECT f.faculty_id, f.facultyname, f.email, f.password, f.role_id, f.course_id, r.rolename
-       FROM Faculty f
-       JOIN Role r ON f.role_id = r.role_id
-       WHERE f.email = ?`,
-      [email]
-    );
+   const [facultyRows] = await db.execute(
+  `SELECT f.faculty_id, f.facultyname, f.email, f.password, f.role_id, f.course_id, r.rolename
+   FROM Faculty f
+   JOIN Role r ON f.role_id = r.role_id
+   WHERE f.email = ?`,
+  [email]
+);
 
     if (facultyRows.length === 0) return res.send(utils.createError('Invalid email'));
 

@@ -13,7 +13,7 @@ router.post('/', async (req, res) => {
     }
 
     const statement = `
-      INSERT INTO FeedbackType (fbtypename)
+      INSERT INTO Feedbacktype (fbtypename)
       VALUES (?)
     `
 
@@ -36,7 +36,7 @@ router.get('/:feedbacktype_id', async (req, res) => {
     try {
       const statement = `
         SELECT feedbacktype_id, fbtypename
-        FROM FeedbackType
+        FROM Feedbacktype
         WHERE feedbacktype_id = ?
       `
       const [rows] = await db.execute(statement, [feedbacktype_id])
@@ -59,7 +59,7 @@ router.get('/', async (req, res) => {
   try {
     const statement = `
       SELECT feedbacktype_id, fbtypename
-      FROM FeedbackType
+      FROM Feedbacktype
     `;
     const [rows] = await db.execute(statement);
 
@@ -80,7 +80,7 @@ router.delete('/:feedbacktype_id', async (req, res) => {
     const { feedbacktype_id } = req.params
     try {
       const statement = `
-        DELETE FROM FeedbackType
+        DELETE FROM Feedbacktype
         WHERE feedbacktype_id = ?
       `
       const [result] = await db.execute(statement, [feedbacktype_id])
@@ -100,7 +100,7 @@ router.delete('/:feedbacktype_id', async (req, res) => {
   //get feedbacktype based on courseid
 router.get('/:course_id', async (req, res) => {
   const { course_id } = req.params;
-  const statement = `SELECT * FROM FeedbackType WHERE course_id = ?`;
+  const statement = `SELECT * FROM Feedbacktype WHERE course_id = ?`;
   const [rows] = await db.execute(statement, [course_id]);
   res.send(utils.createSuccess(rows));
 });

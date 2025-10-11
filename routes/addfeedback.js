@@ -40,7 +40,7 @@ router.post('/', upload.single("pdf_file"), async (req, res) => {
 
     // Check if Admin already added feedback
     const [adminExisting] = await db.execute(
-      `SELECT * FROM addfeedback
+      `SELECT * FROM Addfeedback
        WHERE faculty_id=? AND subject_id=? AND batch_id <=> ? 
        AND feedbackmoduletype_id=? AND feedbacktype_id=? 
        AND added_by_role='Admin' AND added_by_id IS NULL`,
@@ -53,7 +53,7 @@ router.post('/', upload.single("pdf_file"), async (req, res) => {
 
     // Check if CC already added feedback
     const [ccExisting] = await db.execute(
-      `SELECT * FROM addfeedback
+      `SELECT * FROM Addfeedback
        WHERE faculty_id=? AND subject_id=? AND batch_id <=> ? 
        AND feedbackmoduletype_id=? AND feedbacktype_id=? 
        AND added_by_role='CC'`,
@@ -66,7 +66,7 @@ router.post('/', upload.single("pdf_file"), async (req, res) => {
 
     // Insert Admin feedback
     const [result] = await db.execute(
-      `INSERT INTO addfeedback 
+      `INSERT INTO Addfeedback 
        (course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file, added_by_role, added_by_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Admin', NULL)`,
       [course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date, pdf_file]
@@ -106,13 +106,13 @@ router.get("/", async (req, res) => {
               af.feedbackmoduletype_id, fmt.fbmoduletypename,
               af.feedbacktype_id, ft.fbtypename,
               af.date, af.pdf_file, af.created_at
-       FROM addfeedback af
+       FROM Addfeedback af
        JOIN Course c ON af.course_id = c.course_id
        LEFT JOIN Batch b ON af.batch_id = b.batch_id
        JOIN Subject s ON af.subject_id = s.subject_id
        JOIN Faculty f ON af.faculty_id = f.faculty_id
-       JOIN FeedbackModuleType fmt ON af.feedbackmoduletype_id = fmt.feedbackmoduletype_id
-       JOIN FeedbackType ft ON af.feedbacktype_id = ft.feedbacktype_id
+       JOIN Feedbackmoduletype fmt ON af.feedbackmoduletype_id = fmt.feedbackmoduletype_id
+       JOIN Feedbacktype ft ON af.feedbacktype_id = ft.feedbacktype_id
        ORDER BY af.created_at DESC`
     );
 
@@ -130,7 +130,7 @@ router.put("/update/:id", upload.single("pdf_file"), async (req, res) => {
     const { id } = req.params;
     let { course_id, batch_id, subject_id, faculty_id, feedbackmoduletype_id, feedbacktype_id, date } = req.body;
 
-    const [existing] = await db.execute("SELECT * FROM addfeedback WHERE addfeedback_id = ?", [id]);
+    const [existing] = await db.execute("SELECT * FROM Addfeedback WHERE addfeedback_id = ?", [id]);
     if (existing.length === 0) {
       return res.send(utils.createError("Feedback not found"));
     }
@@ -156,7 +156,7 @@ router.put("/update/:id", upload.single("pdf_file"), async (req, res) => {
     const batchIdToSave = batch_id || null;
 
     await db.execute(
-      `UPDATE addfeedback 
+      `UPDATE Addfeedback 
        SET course_id = ?, batch_id = ?, subject_id = ?, faculty_id = ?, 
            feedbackmoduletype_id = ?, feedbacktype_id = ?, date = ?, pdf_file = ?
        WHERE addfeedback_id = ?`,
@@ -186,7 +186,7 @@ router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [existing] = await db.execute("SELECT * FROM addfeedback WHERE addfeedback_id = ?", [id]);
+    const [existing] = await db.execute("SELECT * FROM Addfeedback WHERE addfeedback_id = ?", [id]);
     if (existing.length === 0) return res.send(utils.createError("Feedback not found"));
 
     const pdfFile = existing[0].pdf_file;
@@ -195,7 +195,7 @@ router.delete("/:id", async (req, res) => {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
 
-    await db.execute("DELETE FROM addfeedback WHERE addfeedback_id = ?", [id]);
+    await db.execute("DELETE FROM Addfeedback WHERE addfeedback_id = ?", [id]);
     res.send(utils.createSuccess("Feedback deleted successfully"));
   } catch (ex) {
     console.error(ex);
@@ -217,10 +217,6 @@ router.get("/file/:filename",  (req, res) => {
 
 
 module.exports = router;
-
-
-
-
 
 
 

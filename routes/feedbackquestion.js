@@ -16,7 +16,7 @@ router.post('/', async (req, res) => {
 
 
     const statement = `
-      INSERT INTO FeedbackQuestions (questiontext, feedbacktype_id)
+      INSERT INTO Feedbackquestions (questiontext, feedbacktype_id)
       VALUES (?, ?)
     `
 
@@ -41,8 +41,8 @@ router.get('/', async (req, res) => {
     try {
       const statement = `
         SELECT fq.feedbackquestion_id, fq.questiontext, fq.feedbacktype_id, ft.fbtypename
-        FROM FeedbackQuestions fq
-        INNER JOIN FeedbackType ft ON fq.feedbacktype_id = ft.feedbacktype_id
+        FROM Feedbackquestions fq
+        INNER JOIN Feedbacktype ft ON fq.feedbacktype_id = ft.feedbacktype_id
       `
       const [rows] = await db.execute(statement)
       res.send(utils.createSuccess(rows))
@@ -61,8 +61,8 @@ router.get('/:feedbackquestion_id', async (req, res) => {
     try {
       const statement = `
         SELECT fq.feedbackquestion_id, fq.questiontext, fq.feedbacktype_id, ft.fbtypename
-        FROM FeedbackQuestions fq
-        INNER JOIN FeedbackType ft ON fq.feedbacktype_id = ft.feedbacktype_id
+        FROM Feedbackquestions fq
+        INNER JOIN Feedbacktype ft ON fq.feedbacktype_id = ft.feedbacktype_id
         WHERE fq.feedbackquestion_id = ?
       `
       const [rows] = await db.execute(statement, [feedbackquestion_id])
@@ -91,7 +91,7 @@ router.put('/:feedbackquestion_id', async (req, res) => {
       }
   
       const statement = `
-        UPDATE FeedbackQuestions
+        UPDATE Feedbackquestions
         SET questiontext = ?, feedbacktype_id = ?
         WHERE feedbackquestion_id = ?
       `
@@ -119,7 +119,7 @@ router.get('/feedbacktype/:feedbacktype_id', async (req, res) => {
   try {
     const statement = `
       SELECT feedbackquestion_id, questiontext 
-      FROM FeedbackQuestions 
+      FROM Feedbackquestions 
       WHERE feedbacktype_id = ?
     `
 
@@ -142,7 +142,7 @@ router.delete('/:feedbackquestion_id', async (req, res) => {
 
   try {
     const statement = `
-      DELETE FROM FeedbackQuestions
+      DELETE FROM Feedbackquestions
       WHERE feedbackquestion_id = ?
     `
     const [result] = await db.execute(statement, [feedbackquestion_id])
@@ -159,7 +159,5 @@ router.delete('/:feedbackquestion_id', async (req, res) => {
 
 
 
-
-  
 module.exports = router
 
