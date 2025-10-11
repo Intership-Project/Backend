@@ -25,7 +25,12 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+origin: ['https://feeedbacksystem.netlify.app'], // your Netlify domain
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(
