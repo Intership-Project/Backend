@@ -62,6 +62,43 @@ router.post('/register', async (request, response) => {
 
 
 
+
+// admindashboard schedulefeedback
+// GET All Schedule Feedbacks
+router.get('/stud', async (request, response) => {
+  try {
+    
+
+    console.log("ScheduleFeedback API called");
+    const statement = `
+
+       SELECT 
+        sf.schedulefeedback_id,
+        sf.StartDate,
+        sf.EndDate,
+        sf.feedbacktype_id,
+        sf.status,  -- <--- include this
+        ft.fbtypename,
+        c.coursename,
+        s.subjectname
+      FROM Schedulefeedback sf
+      JOIN Course c ON sf.course_id = c.course_id
+      JOIN Subject s ON sf.subject_id = s.subject_id
+      LEFT JOIN Feedbacktype ft ON sf.feedbacktype_id = ft.feedbacktype_id
+       ORDER BY sf.StartDate DESC
+    `;
+      
+
+    const [rows] = await db.execute(statement)
+    response.send(utils.createSuccess(rows))
+  } catch (ex) {
+    response.send(utils.createError(ex.message || ex))
+  }
+})
+
+
+
+
 // GET All Schedule Feedbacks(student)
 router.get('/', async (request, response) => {
   try {
@@ -109,40 +146,6 @@ router.get('/', async (request, response) => {
   }
 })
 
-
-
-
-// admindashboard schedulefeedback
-// GET All Schedule Feedbacks
-router.get('/stud', async (request, response) => {
-  try {
-    
-
-    console.log("ScheduleFeedback API called");
-    const statement = `
-
-       SELECT 
-        sf.schedulefeedback_id,
-        sf.StartDate,
-        sf.EndDate,
-        sf.feedbacktype_id,
-        sf.status,  -- <--- include this
-        ft.fbtypename,
-        c.coursename,
-        s.subjectname
-      FROM Schedulefeedback sf
-      JOIN Course c ON sf.course_id = c.course_id
-      JOIN Subject s ON sf.subject_id = s.subject_id
-      LEFT JOIN Feedbacktype ft ON sf.feedbacktype_id = ft.feedbacktype_id
-    `;
-      
-
-    const [rows] = await db.execute(statement)
-    response.send(utils.createSuccess(rows))
-  } catch (ex) {
-    response.send(utils.createError(ex.message || ex))
-  }
-})
 
 
 
