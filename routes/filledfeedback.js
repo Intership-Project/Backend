@@ -84,10 +84,10 @@ router.get('/stats/:course_id', async (req, res) => {
   try {
     const [[stats]] = await db.execute(`
       SELECT 
-        -- total student filled feedbacks
+        -- total Student filled feedbacks
         (SELECT COUNT(*) 
          FROM Filledfeedback FF
-         INNER JOIN SSchedulefeedback SF 
+         INNER JOIN Schedulefeedback SF 
            ON FF.schedulefeedback_id = SF.schedulefeedback_id
          WHERE SF.course_id = ?) AS totalFeedbacks,
 

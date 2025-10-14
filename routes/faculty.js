@@ -276,25 +276,6 @@ router.get('/trainers-labs', async (req, res) => {
 
 
 
-// // Get batches for a faculty
-// router.get('/:faculty_id/batches', async (req, res) => {
-//   const { faculty_id } = req.params;
-//   try {
-//     const [rows] = await db.execute(`SELECT role_id, course_id FROM faculty WHERE faculty_id = ?`, [faculty_id]);
-//     if (rows.length === 0) return res.send(utils.createError("Faculty not found"));
-
-//     let batches = [];
-//     if (rows[0].role_id === 1) {
-//       const [batchRows] = await db.execute(`SELECT * FROM batch WHERE faculty_id = ?`, [faculty_id]);
-//       batches = batchRows;
-//     }
-
-//     res.send(utils.createSuccess({ role_id: rows[0].role_id, course_id: rows[0].course_id, batches }));
-//   } catch (err) {
-//     res.send(utils.createError(err.message || err));
-//   }
-// });
-
 
 
 // // Get all faculty
